@@ -43,6 +43,8 @@ mod clipboard;
 pub mod core_main;
 mod custom_server;
 mod lang;
+// LTT Nexus (Model B / P7): client login + subscription status against LTT.
+pub mod nexus_client;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod port_forward;
 

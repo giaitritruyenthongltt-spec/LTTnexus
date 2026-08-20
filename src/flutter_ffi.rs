@@ -3063,6 +3063,45 @@ pub fn session_get_common(
     }
 }
 
+// ── LTT Nexus (Model B / P7): client login + subscription status ─────────────
+
+/// Đăng nhập tài khoản LTT + đăng ký máy. Trả JSON `{"ok":bool, "device_id"?,
+/// "error"?}`. HTTP nên chạy trên luồng worker (frb) — không chặn UI.
+pub fn nexus_client_register(
+    base_url: String,
+    email: String,
+    password: String,
+    display_name: String,
+    platform: String,
+) -> String {
+    match crate::nexus_client::register(&base_url, &email, &password, &display_name, &platform) {
+        Ok(did) => serde_json::json!({"ok": true, "device_id": did}).to_string(),
+        Err(e) => serde_json::json!({"ok": false, "error": e.to_string()}).to_string(),
+    }
+}
+
+/// Hỏi trạng thái thuê bao (có ký). Trả JSON thô của server, hoặc
+/// `{"paid":false,"error":...}` khi lỗi.
+pub fn nexus_client_status(base_url: String) -> String {
+    match crate::nexus_client::status(&base_url) {
+        Ok(body) => body,
+        Err(e) => serde_json::json!({"paid": false, "error": e.to_string()}).to_string(),
+    }
+}
+
+pub fn nexus_client_is_logged_in() -> SyncReturn<bool> {
+    SyncReturn(crate::nexus_client::is_logged_in())
+}
+
+pub fn nexus_client_email() -> SyncReturn<String> {
+    SyncReturn(crate::nexus_client::email())
+}
+
+pub fn nexus_client_logout() -> SyncReturn<bool> {
+    crate::nexus_client::logout();
+    SyncReturn(true)
+}
+
 #[cfg(target_os = "android")]
 pub mod server_side {
     use hbb_common::{config, log};

@@ -9,6 +9,7 @@ import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/common/widgets/animated_rotation_widget.dart';
 import 'package:flutter_hbb/common/widgets/custom_password.dart';
 import 'package:flutter_hbb/consts.dart';
+import 'package:flutter_hbb/ltt/nexus_login.dart';
 import 'package:flutter_hbb/desktop/pages/connection_page.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_setting_page.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_tab_page.dart';
@@ -59,6 +60,12 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    // LTT Nexus (Model B / P7): phải đăng nhập tài khoản LTT trước khi dùng —
+    // đây là chỗ tính phí theo máy (Q98). Chưa đăng nhập → chỉ hiện màn login.
+    if (!bind.nexusClientIsLoggedIn()) {
+      return _buildBlock(
+          child: NexusLoginPage(onLoggedIn: () => setState(() {})));
+    }
     final isIncomingOnly = bind.isIncomingOnly();
     return _buildBlock(
         child: Row(
