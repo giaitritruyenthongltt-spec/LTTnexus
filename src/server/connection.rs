@@ -1654,6 +1654,17 @@ impl Connection {
         if !self.connect_port_forward_if_needed().await {
             return false;
         }
+        // LTT Nexus (Q98): hết credit → máy KHÔNG nhận điều khiển. Kiểm trạng
+        // thái thuê bao ngoài luồng async (may_control có thể gọi HTTP). Chưa
+        // đăng nhập tài khoản LTT / gói miễn phí → luôn cho qua (giữ hành vi gốc).
+        if !tokio::task::spawn_blocking(|| crate::nexus_client::may_control())
+            .await
+            .unwrap_or(true)
+        {
+            self.send_login_error("Máy này đã hết credit LTT Nexus — hãy nạp thêm.")
+                .await;
+            return false;
+        }
         self.authorized = true;
         let (conn_type, auth_conn_type) = if self.file_transfer.is_some() {
             (1, AuthConnType::FileTransfer)

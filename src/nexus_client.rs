@@ -19,6 +19,17 @@ const PREFIX: &str = "ltt_dev_";
 const K_DEVICE: &str = "ltt-nexus-device-id";
 const K_SECRET: &str = "ltt-nexus-secret";
 const K_EMAIL: &str = "ltt-nexus-email";
+const K_BASE: &str = "ltt-nexus-base"; // server đã dùng lúc đăng nhập
+const K_PAID: &str = "ltt-nexus-paid"; // cache trạng thái thuê bao ("1"/"0")
+const K_PAID_AT: &str = "ltt-nexus-paid-at";
+const PAID_TTL_S: u64 = 300; // cache 5 phút — tránh gọi mạng mỗi kết nối vào
+
+fn now_secs() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
 
 fn b64e(raw: &[u8]) -> String {
     base64::encode(raw, base64::Variant::UrlSafeNoPadding)
@@ -73,9 +84,9 @@ pub fn is_logged_in() -> bool {
 }
 
 pub fn logout() {
-    LocalConfig::set_option(K_DEVICE.to_owned(), "".to_owned());
-    LocalConfig::set_option(K_SECRET.to_owned(), "".to_owned());
-    LocalConfig::set_option(K_EMAIL.to_owned(), "".to_owned());
+    for k in [K_DEVICE, K_SECRET, K_EMAIL, K_BASE, K_PAID, K_PAID_AT] {
+        LocalConfig::set_option(k.to_owned(), "".to_owned());
+    }
 }
 
 /// Đăng nhập tài khoản LTT và đăng ký máy này. Trả `device_id`, hoặc lỗi (một câu
@@ -123,6 +134,7 @@ pub fn register(
     LocalConfig::set_option(K_DEVICE.to_owned(), did.clone());
     LocalConfig::set_option(K_SECRET.to_owned(), b64e(&sk.0));
     LocalConfig::set_option(K_EMAIL.to_owned(), email.to_owned());
+    LocalConfig::set_option(K_BASE.to_owned(), base_url.trim_end_matches('/').to_owned());
     Ok(did)
 }
 
@@ -147,7 +159,47 @@ pub fn status(base_url: &str) -> ResultType<String> {
         .header("X-LTT-Timestamp", ts)
         .header("X-LTT-Signature", signature)
         .send()?;
-    Ok(resp.text()?)
+    let text = resp.text()?;
+    // Cache trạng thái trả phí cho `may_control` (Q98) — không phải gọi mạng
+    // trên mỗi kết nối vào.
+    if let Ok(j) = serde_json::from_str::<serde_json::Value>(&text) {
+        let paid = j.get("paid").and_then(|p| p.as_bool()).unwrap_or(true);
+        LocalConfig::set_option(K_PAID.to_owned(), if paid { "1" } else { "0" }.to_owned());
+        LocalConfig::set_option(K_PAID_AT.to_owned(), now_secs().to_string());
+    }
+    Ok(text)
+}
+
+/// Máy này có được NHẬN điều khiển vào không (Q98 — răng của thu phí)?
+///
+/// * Chưa đăng nhập LTT → **true**: máy không do LTT quản, giữ nguyên hành vi
+///   RustDesk gốc, không tự dưng khoá ai.
+/// * Đã đăng nhập → theo thuê bao, cache 5 phút. Miễn phí (giá 0) → server trả
+///   `paid=true` nên luôn cho qua.
+/// * Lỗi mạng → **fail-open** (trừ khi có cache "chưa trả" rõ ràng): không khoá
+///   người đang trả tiền chỉ vì mạng chớp. Đây là chọn lựa có ý thức; siết chặt
+///   (fail-closed ở rendezvous) là việc hardening sau.
+///
+/// GỌI TỪ LUỒNG BLOCKING (spawn_blocking) — nó có thể gọi HTTP.
+pub fn may_control() -> bool {
+    if !is_logged_in() {
+        return true;
+    }
+    let at: u64 = LocalConfig::get_option(K_PAID_AT).parse().unwrap_or(0);
+    let cached = LocalConfig::get_option(K_PAID);
+    if !cached.is_empty() && now_secs().saturating_sub(at) < PAID_TTL_S {
+        return cached == "1";
+    }
+    let base = LocalConfig::get_option(K_BASE);
+    let base = if base.is_empty() {
+        "https://app.lttstudios.com".to_owned()
+    } else {
+        base
+    };
+    match status(&base) {
+        Ok(_) => LocalConfig::get_option(K_PAID) == "1", // status() vừa cache
+        Err(_) => cached != "0", // fail-open trừ khi cache nói rõ "chưa trả"
+    }
 }
 
 #[cfg(test)]
