@@ -202,6 +202,49 @@ pub fn may_control() -> bool {
     }
 }
 
+/// Báo một sự kiện phiên (P8, ràng buộc 6) — "ai đã vào máy tôi". Fire-and-forget:
+/// nhật ký KHÔNG được làm hỏng phiên nếu mạng lỗi. `event` = "start" | "end".
+/// GỌI TỪ LUỒNG BLOCKING (spawn_blocking).
+pub fn report_session_event(session_key: &str, event: &str, peer_id: &str, controller_ip: &str) {
+    if !is_logged_in() {
+        return;
+    }
+    let sk = match sign::SecretKey::from_slice(
+        &b64d(&LocalConfig::get_option(K_SECRET)).unwrap_or_default(),
+    ) {
+        Some(k) => k,
+        None => return,
+    };
+    let base = {
+        let b = LocalConfig::get_option(K_BASE);
+        if b.is_empty() {
+            "https://app.lttstudios.com".to_owned()
+        } else {
+            b
+        }
+    };
+    let path = "/nexus-agent/session-event";
+    let body = serde_json::json!({
+        "session_key": session_key,
+        "event": event,
+        "peer_id": peer_id,
+        "controller_ip": controller_ip,
+    })
+    .to_string()
+    .into_bytes();
+    let ts = now_ts();
+    let sig = sign::sign_detached(&canonical("POST", path, &ts, &body), &sk);
+    let url = format!("{}{}", base.trim_end_matches('/'), path);
+    let _ = http()
+        .post(&url)
+        .header("X-LTT-Device", device_id())
+        .header("X-LTT-Timestamp", ts)
+        .header("X-LTT-Signature", b64e(sig.as_ref()))
+        .header("Content-Type", "application/json")
+        .body(body)
+        .send();
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

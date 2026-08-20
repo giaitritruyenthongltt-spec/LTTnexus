@@ -1666,6 +1666,20 @@ impl Connection {
             return false;
         }
         self.authorized = true;
+        // LTT Nexus (P8, ràng buộc 6): ghi nhật ký "ai đã vào máy tôi". Fire-and-
+        // forget ngoài luồng async — nhật ký không được làm hỏng phiên.
+        {
+            let peer_id = self.lr.my_id.clone();
+            let ip = self.ip.clone();
+            let secs = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            let key = format!("{}-{}", self.inner.id(), secs);
+            tokio::task::spawn_blocking(move || {
+                crate::nexus_client::report_session_event(&key, "start", &peer_id, &ip);
+            });
+        }
         let (conn_type, auth_conn_type) = if self.file_transfer.is_some() {
             (1, AuthConnType::FileTransfer)
         } else if self.port_forward_socket.is_some() {
