@@ -225,8 +225,11 @@ pub fn translate_locale(name: String, locale: &str) -> String {
         if !crate::is_rustdesk() {
             if s.contains("RustDesk")
                 && !name.starts_with("upgrade_rustdesk_server_pro")
-                && name != "powered_by_me"
             {
+                // LTT Nexus: allow "powered_by_me" to be rebranded too (upstream
+                // excluded it to keep RustDesk attribution; our attribution lives
+                // in the About dialog, THIRD_PARTY_NOTICES, LICENCE, and the fork
+                // notice, which AGPL requires — the on-screen string is branding).
                 let app_name = crate::get_app_name();
                 if !app_name.contains("RustDesk") {
                     s = s.replace("RustDesk", &app_name);
