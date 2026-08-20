@@ -294,8 +294,13 @@ void runConnectionManagerScreen() async {
     const DesktopServerPage(),
     MyTheme.currentThemeMode(),
   );
-  final hide = await bind.cmGetConfig(name: "hide_cm") == 'true';
-  gFFI.serverModel.hideCm = hide;
+  // LTT Nexus (Q93 ràng buộc 7): the "being controlled" window is a
+  // non-dismissable indicator — it must ALWAYS show while a session is active.
+  // Ignore the hide_cm config (upstream's allow-hide-cm) so the controller can
+  // never hide from the controlled user that their machine is being accessed.
+  const hide = false;
+  gFFI.serverModel.hideCm = false;
+  // ignore: dead_code
   if (hide) {
     await hideCmWindow(isStartup: true);
   } else {
