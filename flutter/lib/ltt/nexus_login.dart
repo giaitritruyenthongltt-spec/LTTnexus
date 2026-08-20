@@ -3,6 +3,7 @@
 // Khách đăng nhập bằng email+mật khẩu LTT; client gọi `nexus_client_register`
 // (Rust) để đăng ký MÁY này dưới tài khoản (cho tính phí Q98). Kết nối tới máy
 // khác vẫn nhập tay ID+mật khẩu (v1) — màn này chỉ lo tài khoản/thuê bao.
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -19,6 +20,123 @@ String nexusServer() {
     if (s.trim().isNotEmpty) return s.trim();
   } catch (_) {}
   return 'https://app.lttstudios.com';
+}
+
+/// Thanh tài khoản trên trang chủ (sau khi đăng nhập): email · credit · nút
+/// "Nạp credit" (mở trình duyệt, Q98) · đăng xuất. Hỏi `/status` định kỳ và cảnh
+/// báo khi hết credit (hết credit → không điều khiển được, Q98).
+class NexusAccountBar extends StatefulWidget {
+  final VoidCallback onChanged;
+  const NexusAccountBar({Key? key, required this.onChanged}) : super(key: key);
+
+  @override
+  State<NexusAccountBar> createState() => _NexusAccountBarState();
+}
+
+class _NexusAccountBarState extends State<NexusAccountBar> {
+  bool _paid = true;
+  int _credit = 0;
+  int _price = 0;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+    _timer = Timer.periodic(const Duration(seconds: 60), (_) => _refresh());
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _refresh() async {
+    try {
+      final res = await bind.nexusClientStatus(baseUrl: nexusServer());
+      final j = jsonDecode(res) as Map<String, dynamic>;
+      if (!mounted) return;
+      setState(() {
+        _paid = j['paid'] == true;
+        _credit = (j['credit_balance'] ?? 0) is int
+            ? (j['credit_balance'] ?? 0) as int
+            : int.tryParse('${j['credit_balance']}') ?? 0;
+        _price = (j['price_per_month'] ?? 0) is int
+            ? (j['price_per_month'] ?? 0) as int
+            : int.tryParse('${j['price_per_month']}') ?? 0;
+      });
+    } catch (_) {}
+  }
+
+  void _logout() {
+    try {
+      bind.nexusClientLogout();
+    } catch (_) {}
+    widget.onChanged();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final email = () {
+      try {
+        return bind.nexusClientEmail();
+      } catch (_) {
+        return '';
+      }
+    }();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: Row(
+            children: [
+              Icon(Icons.account_circle, size: 18, color: MyTheme.accent),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(email,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12)),
+              ),
+              if (_price > 0)
+                Text('$_credit cr',
+                    style: TextStyle(fontSize: 12, color: MyTheme.darkGray)),
+              IconButton(
+                tooltip: 'Nạp credit',
+                icon: Icon(Icons.add_card, size: 18, color: MyTheme.accent),
+                onPressed: () => launchUrl(Uri.parse(nexusServer())),
+              ),
+              IconButton(
+                tooltip: 'Đăng xuất',
+                icon: const Icon(Icons.logout, size: 16),
+                onPressed: _logout,
+              ),
+            ],
+          ),
+        ),
+        if (_price > 0 && !_paid)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(8),
+            color: const Color(0xFF421511),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text('Hết credit — nạp thêm để điều khiển máy.',
+                      style: TextStyle(color: Color(0xFFFFD0CC), fontSize: 12)),
+                ),
+                TextButton(
+                  onPressed: () => launchUrl(Uri.parse(nexusServer())),
+                  child: Text('Nạp credit',
+                      style: TextStyle(color: MyTheme.accent, fontSize: 12)),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
 }
 
 class NexusLoginPage extends StatefulWidget {

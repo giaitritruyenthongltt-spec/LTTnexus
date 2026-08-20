@@ -87,6 +87,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     final isIncomingOnly = bind.isIncomingOnly();
     final isOutgoingOnly = bind.isOutgoingOnly();
     final children = <Widget>[
+      // LTT Nexus (Model B / P7): thanh tài khoản + trạng thái thuê bao.
+      NexusAccountBar(onChanged: () => setState(() {})),
       if (!isOutgoingOnly) buildPresetPasswordWarning(),
       if (bind.isCustomClient())
         Align(
