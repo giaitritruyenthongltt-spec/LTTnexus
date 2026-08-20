@@ -154,7 +154,14 @@ fn resolve_lang(saved_lang: &str, locale: &str, cjk_fallback: bool) -> String {
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub fn translate(name: String) -> String {
-    let locale = sys_locale::get_locale().unwrap_or_default();
+    // LTT Nexus (P6): mặc định tiếng Việt khi khách CHƯA chọn ngôn ngữ (sản phẩm
+    // cho thị trường VN). Chọn tường minh trong Cài đặt vẫn được tôn trọng —
+    // `resolve_lang` ưu tiên option "lang" khi nó khác rỗng.
+    let locale = if hbb_common::config::LocalConfig::get_option("lang").is_empty() {
+        "vi".to_owned()
+    } else {
+        sys_locale::get_locale().unwrap_or_default()
+    };
     translate_locale(name, &locale)
 }
 
