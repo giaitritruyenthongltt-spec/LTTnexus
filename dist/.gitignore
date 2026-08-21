@@ -1,0 +1,5 @@
+# Ban cai la file lon, phuc vu tu platform data/nexus_dist/ — khong nhoi vao git.
+*.apk
+*.zip
+*.dmg
+*.exe
