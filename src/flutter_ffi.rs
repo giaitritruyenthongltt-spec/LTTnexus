@@ -3085,7 +3085,11 @@ pub fn nexus_client_register(
 pub fn nexus_client_status(base_url: String) -> String {
     match crate::nexus_client::status(&base_url) {
         Ok(body) => body,
-        Err(e) => serde_json::json!({"paid": false, "error": e.to_string()}).to_string(),
+        // KHÔNG bịa `paid: false` khi lỗi. Trước đây một lần chớp mạng làm client
+        // hiện "Hết credit — nạp thêm" cho người đang trả tiền đầy đủ, trong khi
+        // đường cưỡng chế (`may_control`) lại fail-OPEN. Trả đúng lỗi và để giao
+        // diện giữ trạng thái đã biết.
+        Err(e) => serde_json::json!({"error": e.to_string()}).to_string(),
     }
 }
 

@@ -58,6 +58,9 @@ class _NexusAccountBarState extends State<NexusAccountBar> {
       final res = await bind.nexusClientStatus(baseUrl: nexusServer());
       final j = jsonDecode(res) as Map<String, dynamic>;
       if (!mounted) return;
+      // Lỗi mạng KHÔNG phải là "hết credit": chỉ đổi trạng thái khi server thật
+      // sự trả về trường `paid`, còn lại giữ nguyên cái đã biết.
+      if (j['paid'] is! bool) return;
       setState(() {
         _paid = j['paid'] == true;
         _credit = (j['credit_balance'] ?? 0) is int
@@ -111,7 +114,7 @@ class _NexusAccountBarState extends State<NexusAccountBar> {
               IconButton(
                 tooltip: 'Nạp credit',
                 icon: Icon(Icons.add_card, size: 18, color: MyTheme.accent),
-                onPressed: () => launchUrl(Uri.parse(nexusServer())),
+                onPressed: () => launchUrl(Uri.parse('${nexusServer()}/nap')),
               ),
               IconButton(
                 tooltip: 'Đăng xuất',
@@ -133,7 +136,7 @@ class _NexusAccountBarState extends State<NexusAccountBar> {
                       style: TextStyle(color: Color(0xFFFFD0CC), fontSize: 12)),
                 ),
                 TextButton(
-                  onPressed: () => launchUrl(Uri.parse(nexusServer())),
+                  onPressed: () => launchUrl(Uri.parse('${nexusServer()}/nap')),
                   child: Text('Nạp credit',
                       style: TextStyle(color: MyTheme.accent, fontSize: 12)),
                 ),

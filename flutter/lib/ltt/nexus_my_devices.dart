@@ -94,8 +94,12 @@ class _NexusMyDevicesState extends State<NexusMyDevices> {
   @override
   Widget build(BuildContext context) {
     if (!bind.nexusClientIsLoggedIn()) return const Offstage();
-    // Chưa có máy nào khác trong tài khoản → ẩn hẳn, không chiếm chỗ.
-    if (_loaded && _devices.isEmpty) return const Offstage();
+    // Chưa tải xong thì chưa vẽ gì (tránh nhấp nháy).
+    if (!_loaded) return const Offstage();
+    // Chưa có máy nào khác: KHÔNG ẩn hẳn. Ẩn thì người mới không bao giờ biết
+    // tính năng này tồn tại và cứ gõ ID bằng tay — mất đúng khoảnh khắc "à,
+    // hoá ra máy của mình tự hiện ra". Một dòng gợi ý là đủ để dạy.
+    if (_devices.isEmpty) return _goiY();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Column(
@@ -126,6 +130,36 @@ class _NexusMyDevicesState extends State<NexusMyDevices> {
           const SizedBox(height: 4),
           ..._devices.map(_deviceTile),
           const Divider(height: 12),
+        ],
+      ),
+    );
+  }
+
+  /// Trạng thái rỗng: dạy người dùng cách làm cho máy khác hiện ra ở đây.
+  Widget _goiY() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.devices, size: 15, color: MyTheme.accent),
+              const SizedBox(width: 5),
+              Text('Máy của tôi',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: MyTheme.accent)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Cài LTT Nexus trên máy khác rồi đăng nhập cùng tài khoản này — '
+            'máy đó sẽ hiện ở đây, bấm một cái là kết nối.',
+            style: TextStyle(fontSize: 11, color: MyTheme.darkGray, height: 1.4),
+          ),
+          const Divider(height: 14),
         ],
       ),
     );
