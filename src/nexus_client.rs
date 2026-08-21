@@ -150,7 +150,14 @@ pub fn status(base_url: &str) -> ResultType<String> {
         .ok_or_else(|| hbb_common::anyhow::anyhow!("khoa rieng hong"))?;
     let path = "/nexus-agent/status";
     let ts = now_ts();
-    let sig = sign::sign_detached(&canonical("POST", path, &ts, b""), &sk);
+    // Báo kèm ID RustDesk (Model B) để relay ánh xạ ID→tài khoản và cưỡng chế
+    // billing ở tầng rendezvous (hbbs). ID không bí mật.
+    let body = serde_json::json!({
+        "rustdesk_id": hbb_common::config::Config::get_id(),
+    })
+    .to_string()
+    .into_bytes();
+    let sig = sign::sign_detached(&canonical("POST", path, &ts, &body), &sk);
     let signature = b64e(sig.as_ref());
     let url = format!("{}{}", base_url.trim_end_matches('/'), path);
     let resp = http()
@@ -158,6 +165,8 @@ pub fn status(base_url: &str) -> ResultType<String> {
         .header("X-LTT-Device", did)
         .header("X-LTT-Timestamp", ts)
         .header("X-LTT-Signature", signature)
+        .header("Content-Type", "application/json")
+        .body(body)
         .send()?;
     let text = resp.text()?;
     // Cache trạng thái trả phí cho `may_control` (Q98) — không phải gọi mạng
