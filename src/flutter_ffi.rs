@@ -3093,6 +3093,15 @@ pub fn nexus_client_is_logged_in() -> SyncReturn<bool> {
     SyncReturn(crate::nexus_client::is_logged_in())
 }
 
+/// Onboarding 1-chạm: JSON danh sách máy cùng tài khoản. HTTP nên chạy trên
+/// worker (frb) — không chặn UI. Lỗi → `{"devices":[],"error":"..."}`.
+pub fn nexus_client_my_devices(base_url: String) -> String {
+    match crate::nexus_client::my_devices(&base_url) {
+        Ok(body) => body,
+        Err(e) => serde_json::json!({"devices": [], "error": e.to_string()}).to_string(),
+    }
+}
+
 /// Kiểm bản mới. Trả URL trang tải nếu có bản mới hơn, ngược lại "". HTTP nên
 /// chạy trên worker (frb) — không chặn UI.
 pub fn nexus_client_check_update(base_url: String) -> String {

@@ -10,6 +10,7 @@ import 'package:flutter_hbb/common/widgets/animated_rotation_widget.dart';
 import 'package:flutter_hbb/common/widgets/custom_password.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/ltt/nexus_login.dart';
+import 'package:flutter_hbb/ltt/nexus_my_devices.dart';
 import 'package:flutter_hbb/desktop/pages/connection_page.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_setting_page.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_tab_page.dart';
@@ -89,6 +90,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     final children = <Widget>[
       // LTT Nexus (Model B / P7): thanh tài khoản + trạng thái thuê bao.
       NexusAccountBar(onChanged: () => setState(() {})),
+      // Onboarding 1-chạm: danh sách máy của tài khoản, bấm là kết nối.
+      const NexusMyDevices(),
       if (!isOutgoingOnly) buildPresetPasswordWarning(),
       if (bind.isCustomClient())
         Align(

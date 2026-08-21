@@ -179,6 +179,35 @@ pub fn status(base_url: &str) -> ResultType<String> {
     Ok(text)
 }
 
+/// Onboarding 1-chạm: danh sách máy CÙNG TÀI KHOẢN (có ký). Trả JSON thô của
+/// server: `{"devices":[{device_id,rustdesk_id,name,online,paid,is_self}]}`.
+/// Client hiện panel "Máy của tôi" sau đăng nhập → bấm là điền ID + kết nối,
+/// khỏi nhập tay. GỌI TỪ LUỒNG BLOCKING (nó gọi HTTP).
+pub fn my_devices(base_url: &str) -> ResultType<String> {
+    let did = device_id();
+    let sec_b64 = LocalConfig::get_option(K_SECRET);
+    if did.is_empty() || sec_b64.is_empty() {
+        bail!("chua dang nhap");
+    }
+    let sk = sign::SecretKey::from_slice(&b64d(&sec_b64)?)
+        .ok_or_else(|| hbb_common::anyhow::anyhow!("khoa rieng hong"))?;
+    let path = "/nexus-agent/my-devices";
+    let ts = now_ts();
+    let body: &[u8] = b"";
+    let sig = sign::sign_detached(&canonical("POST", path, &ts, body), &sk);
+    let signature = b64e(sig.as_ref());
+    let url = format!("{}{}", base_url.trim_end_matches('/'), path);
+    let resp = http()
+        .post(&url)
+        .header("X-LTT-Device", did)
+        .header("X-LTT-Timestamp", ts)
+        .header("X-LTT-Signature", signature)
+        .header("Content-Type", "application/json")
+        .body(body.to_vec())
+        .send()?;
+    Ok(resp.text()?)
+}
+
 /// Máy này có được NHẬN điều khiển vào không (Q98 — răng của thu phí)?
 ///
 /// * Chưa đăng nhập LTT → **true**: máy không do LTT quản, giữ nguyên hành vi
