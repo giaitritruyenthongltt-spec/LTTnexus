@@ -689,6 +689,21 @@ impl RendezvousServer {
             return Ok((msg_out, None));
         }
         let id = ph.id;
+        // LTT Nexus (Q101, cưỡng chế relay): hỏi platform "máy đích này còn được
+        // điều khiển không?" (thuê bao Q98). Răng thật của thu phí — client bị sửa
+        // vẫn không lách được vì relay từ chối môi giới. Fail-open + TẮT mặc định
+        // (chưa cấu hình URL → luôn cho qua): xem `ltt_relay_allowed`.
+        if !ltt_relay_allowed(&id).await {
+            let mut msg_out = RendezvousMessage::new();
+            msg_out.set_punch_hole_response(PunchHoleResponse {
+                failure: punch_hole_response::Failure::LICENSE_OVERUSE.into(),
+                other_failure:
+                    "LTT Nexus: máy đích đã hết credit. Hãy nạp thêm để điều khiển."
+                        .to_owned(),
+                ..Default::default()
+            });
+            return Ok((msg_out, None));
+        }
         // punch hole request from A, relay to B,
         // check if in same intranet first,
         // fetch local addrs if in same intranet.
@@ -1360,4 +1375,39 @@ async fn create_tcp_listener(port: i32) -> ResultType<TcpListener> {
     let s = listen_any(port as _).await?;
     log::debug!("listen on tcp {:?}", s.local_addr());
     Ok(s)
+}
+
+// ── LTT Nexus: cưỡng chế thu phí ở tầng relay (Q101) ─────────────────────────
+//
+// Hỏi platform LTT xem một ID RustDesk có được môi giới kết nối không. Hai lớp
+// an toàn cố ý: (1) TẮT mặc định — chưa đặt `LTT_NEXUS_RELAY_CHECK_URL` thì luôn
+// cho qua, nên relay nguyên trạng cho tới khi vận hành bật; (2) FAIL-OPEN — mọi
+// lỗi mạng/parse đều cho qua, chỉ chặn khi platform nói RÕ `"allowed":false`.
+// Không dựa vào client tự giác: client bị sửa vẫn không lách được lớp này.
+async fn ltt_relay_allowed(id: &str) -> bool {
+    let url = std::env::var("LTT_NEXUS_RELAY_CHECK_URL").unwrap_or_default();
+    let url = url.trim();
+    if url.is_empty() {
+        return true; // chưa cấu hình → cưỡng chế TẮT
+    }
+    let secret = std::env::var("LTT_NEXUS_RELAY_SECRET").unwrap_or_default();
+    let client = match reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(3))
+        .build()
+    {
+        Ok(c) => c,
+        Err(_) => return true, // fail-open
+    };
+    let resp = client
+        .get(url)
+        .query(&[("id", id)])
+        .header("X-LTT-Relay-Secret", secret)
+        .send()
+        .await;
+    let body = match resp {
+        Ok(r) => r.text().await.unwrap_or_default(),
+        Err(_) => return true, // fail-open
+    };
+    // Chỉ chặn khi platform nói rõ chưa trả phí.
+    !body.replace(' ', "").contains("\"allowed\":false")
 }
