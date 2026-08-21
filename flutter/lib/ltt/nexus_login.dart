@@ -37,6 +37,7 @@ class _NexusAccountBarState extends State<NexusAccountBar> {
   bool _paid = true;
   int _credit = 0;
   int _price = 0;
+  String _updateUrl = ''; // != '' → có bản mới
   Timer? _timer;
 
   @override
@@ -66,6 +67,11 @@ class _NexusAccountBarState extends State<NexusAccountBar> {
             ? (j['price_per_month'] ?? 0) as int
             : int.tryParse('${j['price_per_month']}') ?? 0;
       });
+    } catch (_) {}
+    // Kiểm bản mới (không cần đăng nhập; fail-open → '' nếu lỗi/không có bản).
+    try {
+      final u = await bind.nexusClientCheckUpdate(baseUrl: nexusServer());
+      if (mounted) setState(() => _updateUrl = u);
     } catch (_) {}
   }
 
@@ -129,6 +135,25 @@ class _NexusAccountBarState extends State<NexusAccountBar> {
                 TextButton(
                   onPressed: () => launchUrl(Uri.parse(nexusServer())),
                   child: Text('Nạp credit',
+                      style: TextStyle(color: MyTheme.accent, fontSize: 12)),
+                ),
+              ],
+            ),
+          ),
+        if (_updateUrl.isNotEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(8),
+            color: const Color(0xFF1A1412),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text('Đã có bản LTT Nexus mới.',
+                      style: TextStyle(fontSize: 12)),
+                ),
+                TextButton(
+                  onPressed: () => launchUrl(Uri.parse(_updateUrl)),
+                  child: Text('Cập nhật',
                       style: TextStyle(color: MyTheme.accent, fontSize: 12)),
                 ),
               ],

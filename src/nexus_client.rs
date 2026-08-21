@@ -211,6 +211,53 @@ pub fn may_control() -> bool {
     }
 }
 
+/// Phiên bản LTT của bản build này (khác version RustDesk gốc 1.4.9). So với
+/// `manifest.version` ở `/nexus/version.json` để biết có bản mới không.
+pub const LTT_VERSION: &str = "1.0.0";
+
+fn version_gt(a: &str, b: &str) -> bool {
+    // a > b theo semver đơn giản (x.y.z; phần thiếu coi như 0).
+    let pa: Vec<u64> = a.split('.').map(|s| s.trim().parse().unwrap_or(0)).collect();
+    let pb: Vec<u64> = b.split('.').map(|s| s.trim().parse().unwrap_or(0)).collect();
+    for i in 0..pa.len().max(pb.len()) {
+        let x = pa.get(i).copied().unwrap_or(0);
+        let y = pb.get(i).copied().unwrap_or(0);
+        if x != y {
+            return x > y;
+        }
+    }
+    false
+}
+
+/// Có bản mới không? Trả URL trang tải nếu `manifest.version` > bản hiện tại,
+/// ngược lại "". Không cần đăng nhập (version.json công khai). Fail-open: lỗi
+/// mạng → "" (không quấy khách). GỌI TỪ LUỒNG BLOCKING.
+pub fn check_update(base_url: &str) -> String {
+    let base = base_url.trim_end_matches('/');
+    let url = format!("{}/nexus/version.json", base);
+    let client = match reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+    {
+        Ok(c) => c,
+        Err(_) => return String::new(),
+    };
+    let body = match client.get(&url).send().and_then(|r| r.text()) {
+        Ok(t) => t,
+        Err(_) => return String::new(),
+    };
+    let j: serde_json::Value = match serde_json::from_str(&body) {
+        Ok(v) => v,
+        Err(_) => return String::new(),
+    };
+    let latest = j.get("version").and_then(|v| v.as_str()).unwrap_or("");
+    if version_gt(latest, LTT_VERSION) {
+        format!("{}/tai-xuong", base)
+    } else {
+        String::new()
+    }
+}
+
 /// Báo một sự kiện phiên (P8, ràng buộc 6) — "ai đã vào máy tôi". Fire-and-forget:
 /// nhật ký KHÔNG được làm hỏng phiên nếu mạng lỗi. `event` = "start" | "end".
 /// GỌI TỪ LUỒNG BLOCKING (spawn_blocking).
@@ -281,6 +328,15 @@ mod tests {
             dong[3],
             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         );
+    }
+
+    #[test]
+    fn so_sanh_phien_ban() {
+        assert!(version_gt("1.0.1", "1.0.0"));
+        assert!(version_gt("1.1.0", "1.0.9"));
+        assert!(version_gt("2.0", "1.9.9"));
+        assert!(!version_gt("1.0.0", "1.0.0"));
+        assert!(!version_gt("1.0.0", "1.0.1"));
     }
 
     #[test]

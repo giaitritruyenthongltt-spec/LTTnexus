@@ -3093,6 +3093,12 @@ pub fn nexus_client_is_logged_in() -> SyncReturn<bool> {
     SyncReturn(crate::nexus_client::is_logged_in())
 }
 
+/// Kiểm bản mới. Trả URL trang tải nếu có bản mới hơn, ngược lại "". HTTP nên
+/// chạy trên worker (frb) — không chặn UI.
+pub fn nexus_client_check_update(base_url: String) -> String {
+    crate::nexus_client::check_update(&base_url)
+}
+
 pub fn nexus_client_email() -> SyncReturn<String> {
     SyncReturn(crate::nexus_client::email())
 }
