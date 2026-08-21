@@ -1408,6 +1408,54 @@ async fn ltt_relay_allowed(id: &str) -> bool {
         Ok(r) => r.text().await.unwrap_or_default(),
         Err(_) => return true, // fail-open
     };
-    // Chỉ chặn khi platform nói rõ chưa trả phí.
+    ltt_quyet_dinh(&body)
+}
+
+/// Phần QUYẾT ĐỊNH thuần của `ltt_relay_allowed`, tách khỏi I/O để test được.
+///
+/// Đây là chỗ tiền bị chặn hay không, nên nó phải có test: chỉ chặn khi control
+/// plane nói RÕ `"allowed": false`. Mọi thứ khác (rỗng, JSON lạ, lỗi, HTML của
+/// proxy) đều cho qua — fail-open có chủ ý, không khoá người đang trả tiền vì
+/// một sự cố mạng.
+fn ltt_quyet_dinh(body: &str) -> bool {
     !body.replace(' ', "").contains("\"allowed\":false")
+}
+
+#[cfg(test)]
+mod ltt_tests {
+    use super::ltt_quyet_dinh;
+
+    #[test]
+    fn chan_khi_platform_noi_ro_chua_tra() {
+        assert!(!ltt_quyet_dinh(r#"{"allowed":false,"managed":true}"#));
+        // khoảng trắng kiểu nào cũng phải bắt được
+        assert!(!ltt_quyet_dinh(r#"{ "allowed" : false }"#));
+        assert!(!ltt_quyet_dinh("{
+  \"allowed\": false
+}"));
+    }
+
+    #[test]
+    fn cho_qua_khi_da_tra() {
+        assert!(ltt_quyet_dinh(r#"{"allowed":true,"managed":true}"#));
+        assert!(ltt_quyet_dinh(r#"{"allowed":true,"managed":false}"#));
+    }
+
+    #[test]
+    fn fail_open_khi_khong_hieu_cau_tra_loi() {
+        // Rỗng, HTML của proxy, JSON lạ, thông báo lỗi — đều KHÔNG được chặn:
+        // một sự cố ở control plane không được biến thành mất dịch vụ cho
+        // người đang trả tiền.
+        assert!(ltt_quyet_dinh(""));
+        assert!(ltt_quyet_dinh("<html>502 Bad Gateway</html>"));
+        assert!(ltt_quyet_dinh(r#"{"error":{"code":"not_found"}}"#));
+        assert!(ltt_quyet_dinh("null"));
+    }
+
+    #[test]
+    fn khong_nham_chuoi_gan_giong() {
+        // "allowed":falsey / not_allowed:false không phải câu từ chối.
+        assert!(ltt_quyet_dinh(r#"{"not_allowed":true}"#));
+        assert!(ltt_quyet_dinh(r#"{"allowed":"false"}"#));  // chuỗi, không phải bool
+    }
 }
