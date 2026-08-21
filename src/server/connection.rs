@@ -316,6 +316,8 @@ pub struct Connection {
     port_forward_address: String,
     tx_to_cm: mpsc::UnboundedSender<ipc::Data>,
     authorized: bool,
+    // LTT Nexus (P8): khoá nhật ký truy cập của phiên này (rỗng = chưa ghi).
+    ltt_audit_key: String,
     require_2fa: Option<totp_rs::TOTP>,
     keyboard: bool,
     clipboard: bool,
@@ -517,6 +519,7 @@ impl Connection {
             port_forward_address: "".to_owned(),
             tx_to_cm,
             authorized: false,
+            ltt_audit_key: String::new(),
             keyboard: Self::permission(keys::OPTION_ENABLE_KEYBOARD, &control_permissions),
             clipboard: Self::permission(keys::OPTION_ENABLE_CLIPBOARD, &control_permissions),
             audio: Self::permission(keys::OPTION_ENABLE_AUDIO, &control_permissions),
@@ -1676,6 +1679,7 @@ impl Connection {
                 .map(|d| d.as_secs())
                 .unwrap_or(0);
             let key = format!("{}-{}", self.inner.id(), secs);
+            self.ltt_audit_key = key.clone();
             tokio::task::spawn_blocking(move || {
                 crate::nexus_client::report_session_event(&key, "start", &peer_id, &ip);
             });
@@ -4808,6 +4812,14 @@ impl Connection {
     async fn on_close(&mut self, reason: &str, lock: bool) {
         if self.closed {
             return;
+        }
+        // LTT Nexus (P8): ghi thời điểm kết thúc phiên (ended_at) vào nhật ký.
+        // `take` để chỉ báo một lần. Fire-and-forget, không chặn đường đóng.
+        if !self.ltt_audit_key.is_empty() {
+            let key = std::mem::take(&mut self.ltt_audit_key);
+            tokio::task::spawn_blocking(move || {
+                crate::nexus_client::report_session_event(&key, "end", "", "");
+            });
         }
         self.closed = true;
         // If voice A,B -> C, and A,B has voice call
