@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_hbb/common/widgets/setting_widgets.dart';
+import 'package:flutter_hbb/ltt/nexus_login.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_setting_page.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
@@ -679,8 +680,15 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
     final disabledSettings = bind.isDisableSettings();
     final hideSecuritySettings =
         bind.mainGetBuildinOption(key: kOptionHideSecuritySetting) == 'Y';
+    // LTT Nexus: thanh tài khoản (email · credit · đăng xuất) đặt TRÊN CÙNG.
+    // Trên mobile đây là chỗ duy nhất người dùng quản lý tài khoản LTT — desktop
+    // có thanh này ở trang chủ, mobile thì không có chỗ nào khác.
+    final lttAccountSection = CustomSettingsSection(
+        child: NexusAccountBar(onChanged: () => setState(() {})));
+
     final settings = SettingsList(
       sections: [
+        if (bind.nexusClientIsLoggedIn()) lttAccountSection,
         customClientSection,
         if (!bind.isDisableAccount())
           SettingsSection(

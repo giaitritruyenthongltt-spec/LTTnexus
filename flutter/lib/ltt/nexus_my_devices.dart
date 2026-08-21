@@ -93,7 +93,11 @@ class _NexusMyDevicesState extends State<NexusMyDevices> {
 
   @override
   Widget build(BuildContext context) {
-    if (!bind.nexusClientIsLoggedIn()) return const Offstage();
+    // Chưa đăng nhập: trên DESKTOP không bao giờ tới đây (đã có cổng đăng nhập
+    // ở trang chủ), nhưng trên MOBILE thì đây là **đường đăng nhập duy nhất** —
+    // thiếu nó thì người dùng iPhone/Android không có cách nào vào tài khoản
+    // LTT, và mọi thứ gắn với tài khoản (máy của tôi, thuê bao) thành vô hình.
+    if (!bind.nexusClientIsLoggedIn()) return _moiDangNhap();
     // Chưa tải xong thì chưa vẽ gì (tránh nhấp nháy).
     if (!_loaded) return const Offstage();
     // Chưa có máy nào khác: KHÔNG ẩn hẳn. Ẩn thì người mới không bao giờ biết
@@ -133,6 +137,53 @@ class _NexusMyDevicesState extends State<NexusMyDevices> {
         ],
       ),
     );
+  }
+
+  /// Chưa đăng nhập (mobile): mời đăng nhập tài khoản LTT.
+  Widget _moiDangNhap() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: MyTheme.accent.withOpacity(0.35)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.account_circle, size: 20, color: MyTheme.accent),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Tài khoản LTT',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                Text('Đăng nhập để thấy máy của bạn và kết nối bằng một chạm.',
+                    style: TextStyle(fontSize: 11, color: MyTheme.darkGray)),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: _moTrangDangNhap,
+            child: Text('Đăng nhập',
+                style: TextStyle(color: MyTheme.accent, fontSize: 13)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _moTrangDangNhap() {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => Scaffold(
+        appBar: AppBar(title: const Text('Đăng nhập LTT Nexus')),
+        body: NexusLoginPage(onLoggedIn: () {
+          Navigator.of(context).pop();
+          _loaded = false;
+          _refresh();
+        }),
+      ),
+    ));
   }
 
   /// Trạng thái rỗng: dạy người dùng cách làm cho máy khác hiện ra ở đây.
