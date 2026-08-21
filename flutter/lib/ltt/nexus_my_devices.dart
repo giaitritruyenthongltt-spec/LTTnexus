@@ -12,6 +12,37 @@ import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:flutter_hbb/ltt/nexus_login.dart';
 
+/// Lọc + sắp xếp danh sách máy từ JSON thô của `/nexus-agent/my-devices`.
+///
+/// Tách khỏi widget để **test được không cần FFI**: đây là chỗ dễ sai nhất
+/// (bỏ sót máy chính mình, hiện máy chưa kết nối được, sai thứ tự) và cũng là
+/// chỗ người dùng nhìn thấy đầu tiên sau khi đăng nhập.
+///
+/// Quy tắc: bỏ chính máy này (`is_self`), bỏ máy chưa có `rustdesk_id` (chưa
+/// kết nối tới được), máy đang bật xếp lên trước. JSON hỏng → danh sách rỗng
+/// (không ném: panel chỉ việc ẩn đi, không làm vỡ trang chủ).
+List<Map<String, dynamic>> locSapXepMay(String jsonTho) {
+  try {
+    final j = jsonDecode(jsonTho);
+    if (j is! Map) return [];
+    final ds = j['devices'];
+    if (ds is! List) return [];
+    final ra = <Map<String, dynamic>>[];
+    for (final d in ds) {
+      if (d is! Map) continue;
+      final m = Map<String, dynamic>.from(d);
+      if (m['is_self'] == true) continue;
+      if ('${m['rustdesk_id'] ?? ''}'.isEmpty) continue;
+      ra.add(m);
+    }
+    ra.sort((a, b) =>
+        (b['online'] == true ? 1 : 0) - (a['online'] == true ? 1 : 0));
+    return ra;
+  } catch (_) {
+    return [];
+  }
+}
+
 class NexusMyDevices extends StatefulWidget {
   const NexusMyDevices({Key? key}) : super(key: key);
 
@@ -43,16 +74,7 @@ class _NexusMyDevicesState extends State<NexusMyDevices> {
     if (mounted) setState(() => _loading = true);
     try {
       final res = await bind.nexusClientMyDevices(baseUrl: nexusServer());
-      final j = jsonDecode(res) as Map<String, dynamic>;
-      final list = (j['devices'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-      // Bỏ chính máy này; chỉ giữ máy đã có rustdesk_id (mới kết nối được).
-      final others = list
-          .where((d) =>
-              d['is_self'] != true && '${d['rustdesk_id'] ?? ''}'.isNotEmpty)
-          .toList();
-      // Online lên trước.
-      others.sort((a, b) =>
-          (b['online'] == true ? 1 : 0) - (a['online'] == true ? 1 : 0));
+      final others = locSapXepMay(res);
       if (!mounted) return;
       setState(() {
         _devices = others;

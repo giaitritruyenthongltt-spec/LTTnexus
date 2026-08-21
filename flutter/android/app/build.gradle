@@ -97,7 +97,9 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId "com.carriez.flutter_hbb"
+        // Danh tinh CAI DAT cua ban LTT Nexus. Khac voi `package` cua Kotlin
+        // (com.carriez.flutter_hbb) — do la namespace MA NGUON, doi la vo JNI.
+        applicationId "com.lttstudios.nexus"
         minSdkVersion 22
         targetSdkVersion 33
         versionCode flutterVersionCode.toInteger()

@@ -12,6 +12,7 @@ import 'package:flutter_hbb/models/peer_model.dart';
 
 import '../../common.dart';
 import '../../common/widgets/peer_tab_page.dart';
+import 'package:flutter_hbb/ltt/nexus_my_devices.dart';
 import '../../common/widgets/autocomplete.dart';
 import '../../consts.dart';
 import '../../models/model.dart';
@@ -86,6 +87,9 @@ class _ConnectionPageState extends State<ConnectionPage> {
             delegate: SliverChildListDelegate([
           if (!bind.isCustomClient() && !isIOS)
             Obx(() => _buildUpdateUI(stateGlobal.updateUrl.value)),
+          // LTT Nexus: onboarding 1-cham tren mobile — hien may cua tai khoan
+          // ngay tren o nhap ID, bam la ket noi.
+          const NexusMyDevices(),
           _buildRemoteIDTextField(),
         ])),
         SliverFillRemaining(

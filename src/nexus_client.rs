@@ -242,7 +242,7 @@ pub fn may_control() -> bool {
 
 /// Phiên bản LTT của bản build này (khác version RustDesk gốc 1.4.9). So với
 /// `manifest.version` ở `/nexus/version.json` để biết có bản mới không.
-pub const LTT_VERSION: &str = "1.0.0";
+pub const LTT_VERSION: &str = "1.1.0";
 
 fn version_gt(a: &str, b: &str) -> bool {
     // a > b theo semver đơn giản (x.y.z; phần thiếu coi như 0).
@@ -333,6 +333,55 @@ pub fn report_session_event(session_key: &str, event: &str, peer_id: &str, contr
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn canonical_doi_theo_body_va_thoi_gian() {
+        // Một byte khác trong body -> chuỗi ký khác. Nếu không, chữ ký không
+        // ràng buộc nội dung và ai chặn được request đều sửa được body.
+        let a = canonical("POST", "/p", "1", b"{}");
+        let b = canonical("POST", "/p", "1", b"{ }");
+        assert_ne!(a, b);
+        // Cùng body nhưng khác dấu thời gian -> khác (chống phát lại).
+        let c = canonical("POST", "/p", "2", b"{}");
+        assert_ne!(a, c);
+    }
+
+    #[test]
+    fn canonical_khong_lan_giua_cac_truong() {
+        // "/a" + ts "11" phải khác "/a1" + ts "1": nếu nối chuỗi không có dấu
+        // ngăn thì hai request khác nhau lại ký ra cùng một chuỗi.
+        assert_ne!(canonical("GET", "/a", "11", b""), canonical("GET", "/a1", "1", b""));
+    }
+
+    #[test]
+    fn b64_di_ve_khong_mat_du_lieu() {
+        let goc: Vec<u8> = (0u8..=255).collect();
+        let lai = b64d(&b64e(&goc)).expect("giai ma duoc");
+        assert_eq!(goc, lai);
+    }
+
+    #[test]
+    fn b64_hong_thi_bao_loi_chu_khong_hoang_loan() {
+        assert!(b64d("khong-phai-base64!!!").is_err());
+    }
+
+    #[test]
+    fn version_gt_bat_duoc_moi_truong_hop_thuong_gap() {
+        assert!(version_gt("1.0.1", "1.0.0"));
+        assert!(version_gt("1.1.0", "1.0.9"));
+        assert!(version_gt("2.0", "1.9.9"));
+        assert!(!version_gt("1.0.0", "1.0.0"));
+        assert!(!version_gt("1.0.0", "1.0.1"));
+        // Phần thiếu coi như 0 -> "1.0" không mới hơn "1.0.0".
+        assert!(!version_gt("1.0", "1.0.0"));
+        // Rác không được coi là bản mới (fail-open: không quấy khách).
+        assert!(!version_gt("khong-phai-so", "1.0.0"));
+    }
+
+    #[test]
+    fn hex_lower_dung_dinh_dang() {
+        assert_eq!(hex_lower(&[0x00, 0x0f, 0xff]), "000fff");
+    }
 
     #[test]
     fn public_key_encoding_khop_dang_agent_auth() {
