@@ -304,6 +304,11 @@ fn spawn_wait_responses(sockets: Vec<UdpSocket>) -> UnboundedReceiver<config::Di
 
 async fn handle_received_peers(mut rx: UnboundedReceiver<config::DiscoveryPeer>) -> ResultType<()> {
     let mut peers = config::LanPeers::load().peers;
+    // Gop cac ban ghi trung ID da nam san trong file. `is_same_peer` truoc day so
+    // ca `username` nen file cu co the chua nhieu dong cho cung mot may; sua rieng
+    // phep so khong don duoc cho da ghi, vi vong duoi chi thay THE MOT dong.
+    let mut da_thay = HashSet::new();
+    peers.retain(|p| da_thay.insert(p.id.clone()));
     peers.iter_mut().for_each(|peer| {
         peer.online = false;
     });

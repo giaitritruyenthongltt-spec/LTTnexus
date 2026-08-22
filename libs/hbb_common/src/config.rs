@@ -2301,8 +2301,38 @@ pub struct DiscoveryPeer {
 }
 
 impl DiscoveryPeer {
+    /// Cung mot MAY hay khong. So theo `id`, KHONG so `username`.
+    ///
+    /// `id` la danh tinh cua may; `username` chi la nhan hien thi va no doi khi
+    /// nguoi khac dang nhap, hoac rong khi chua ai dang nhap. So ca hai nghia la
+    /// cung mot may tra loi hai lan voi hai tinh trang dang nhap khac nhau se
+    /// thanh HAI the trong danh sach - da thay that: 3 may trong mang hien ra 5
+    /// the, va chu san pham doc do la bang chung nhat ky bi lan giua cac tai khoan.
     pub fn is_same_peer(&self, other: &DiscoveryPeer) -> bool {
-        self.id == other.id && self.username == other.username
+        self.id == other.id
+    }
+}
+
+#[cfg(test)]
+mod ltt_lan_tests {
+    use super::DiscoveryPeer;
+
+    fn may(id: &str, user: &str) -> DiscoveryPeer {
+        let mut p = DiscoveryPeer::default();
+        p.id = id.to_owned();
+        p.username = user.to_owned();
+        p
+    }
+
+    #[test]
+    fn cung_id_khac_nguoi_dang_nhap_van_la_MOT_may() {
+        // Truoc khi sua: hai dong nay bi coi la hai may -> hai the trong danh sach.
+        assert!(may("288780716", "aoeadmin").is_same_peer(&may("288780716", "")));
+    }
+
+    #[test]
+    fn khac_id_thi_la_hai_may() {
+        assert!(!may("288780716", "aoeadmin").is_same_peer(&may("293017172", "aoeadmin")));
     }
 }
 
