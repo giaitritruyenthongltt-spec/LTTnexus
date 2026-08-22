@@ -227,6 +227,22 @@ class _NexusLoginPageState extends State<NexusLoginPage> {
   final _pass = TextEditingController();
   bool _busy = false;
   String _error = '';
+  String _updateUrl = '';
+
+  @override
+  void initState() {
+    super.initState();
+    // Kiểm bản mới NGAY Ở MÀN ĐĂNG NHẬP. Trước đây banner cập nhật chỉ nằm
+    // trong thanh tài khoản, mà thanh đó chỉ hiện SAU khi đăng nhập — nên người
+    // chưa đăng nhập (hoặc vừa đăng xuất) không bao giờ biết có bản mới, kể cả
+    // khi bản họ đang chạy đã cũ hàng tháng. Việc kiểm không cần tài khoản.
+    () async {
+      try {
+        final u = await bind.nexusClientCheckUpdate(baseUrl: nexusServer());
+        if (mounted) setState(() => _updateUrl = u);
+      } catch (_) {}
+    }();
+  }
 
   @override
   void dispose() {
@@ -293,6 +309,36 @@ class _NexusLoginPageState extends State<NexusLoginPage> {
                 Text('Đăng nhập bằng tài khoản LTT',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 13, color: MyTheme.darkGray)),
+                if (_updateUrl.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  InkWell(
+                    onTap: () => launchUrl(Uri.parse(_updateUrl)),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A1412),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: MyTheme.accent.withOpacity(0.4)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.system_update_alt,
+                              size: 16, color: MyTheme.accent),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text('Đã có bản LTT Nexus mới',
+                                style: TextStyle(fontSize: 12)),
+                          ),
+                          Text('Cập nhật',
+                              style: TextStyle(
+                                  fontSize: 12, color: MyTheme.accent)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 22),
                 TextField(
                   controller: _email,
