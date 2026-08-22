@@ -281,12 +281,21 @@ fn ma_hoa_url(raw: &str) -> String {
     ra
 }
 
-/// Khoá nền tảng trong bản kê phiên bản, theo hệ đang chạy.
+/// Khoá nền tảng trong bản kê phiên bản, theo hệ **và kiến trúc** đang chạy.
+///
+/// macOS tách làm hai khoá vì hai bản `.dmg` của nó **không thay thế nhau được**:
+/// một bản Apple Silicon, một bản Intel. Gộp chúng vào một khoá rồi chọn sau
+/// nghĩa là có một chỗ nữa để chọn nhầm — mà chọn nhầm ở đây là tải về một bản
+/// cài không chạy nổi trên máy đó.
 pub fn khoa_nen_tang() -> &'static str {
     if cfg!(windows) {
         "windows"
     } else if cfg!(target_os = "macos") {
-        "macos"
+        if cfg!(target_arch = "aarch64") {
+            "macos"
+        } else {
+            "macos_intel"
+        }
     } else if cfg!(target_os = "android") {
         "android"
     } else if cfg!(target_os = "ios") {
@@ -642,6 +651,21 @@ pub fn report_session_event(session_key: &str, event: &str, peer_id: &str, contr
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn khoa_nen_tang_khop_he_dang_bien_dich() {
+        // Khoa nay phai co that trong ban ke — go sai mot chu la client
+        // khong bao gio thay ban moi, va no im lang chu khong bao loi.
+        let k = khoa_nen_tang();
+        assert!(["windows", "macos", "macos_intel", "android", "ios", "linux"]
+            .contains(&k), "khoa la {k}");
+        if cfg!(windows) {
+            assert_eq!(k, "windows");
+        }
+        if cfg!(all(target_os = "macos", target_arch = "x86_64")) {
+            assert_eq!(k, "macos_intel");
+        }
+    }
 
     // ── Vé SSO đi vào query string: mã hoá sai là mở cửa cho chèn tham số ────
 

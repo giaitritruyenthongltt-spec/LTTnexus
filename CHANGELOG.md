@@ -67,6 +67,12 @@ của "Flutter Nightly") dựng `.dmg` cho cả Apple Silicon lẫn Intel, và g
 ảnh đĩa → `ditto` gói `.app` đè lên bản cũ → mở lại. Việc tráo do một kịch bản rời
 làm sau khi app thoát, vì thứ phải thay chính là gói đang chạy.
 
+**macOS có hai bản, và bản kê nay có hai ô riêng.** CI dựng ra hai file `.dmg` —
+Apple Silicon và Intel — mà chúng **không thay thế nhau được**. Bản kê trước chỉ có
+một ô cho macOS, nghĩa là phát hành đồng nghĩa với chọn một kiến trúc và bỏ mặc
+kiến trúc kia. Nay chúng là hai khoá nền tảng (`macos`, `macos_intel`); client tự
+chọn theo kiến trúc đang chạy, trang tải hiện đủ hai.
+
 > ⚠️ Bản macOS **chưa ký**. Lần mở đầu tiên macOS sẽ chặn; bấm chuột phải → *Open*,
 > hoặc chạy `xattr -dr com.apple.quarantine /Applications/LTTNexus.app`. Ký và
 > notarize cần tài khoản Apple Developer 99 USD/năm.
