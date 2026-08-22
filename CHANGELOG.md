@@ -41,10 +41,23 @@ khi **tên file kết thúc bằng `install.exe`** (`libs/portable/src/main.rs`)
 > nâng cấp. Cài tay **một lần** bằng file `…-install.exe` ở
 > `app.lttstudios.com/tai-xuong`, từ đó về sau mỗi bản mới chỉ cần một cú bấm.
 
-**Mỗi tab danh sách máy nay có một dòng nói rõ nó là gì.** Tab *Đã tìm thấy* liệt
-kê máy quét được trong mạng nội bộ — **không thuộc tài khoản LTT** — nhưng trước
-đây nó không nói vậy, nên nhìn vào dễ tưởng là danh sách máy của tài khoản hoặc
-nhật ký chung của máy chủ.
+**Không còn danh sách máy ngoài tài khoản.** Tab *Đã tìm thấy* đã **bỏ hẳn**. Nó
+liệt kê bất cứ máy nào trả lời broadcast trong mạng nội bộ — kể cả máy chưa từng
+đăng nhập tài khoản của bạn. Sản phẩm này lấy **tài khoản** làm ranh giới: máy
+thuộc tài khoản nằm ở *Máy của tôi*, và không có danh sách thứ hai bên cạnh chứa
+máy không thuộc tài khoản. Các tab còn lại (Gần đây, Yêu thích) nay có một dòng
+nói rõ chúng là dữ liệu **lưu trên máy này**, không phải danh sách tài khoản.
+
+**Máy thôi tự khai mình ra mạng nội bộ.** Trước đây mỗi khi có ai trong cùng mạng
+phát broadcast dò tìm, máy bạn trả lời kèm `id`, tên máy, **tên người đang đăng
+nhập** và địa chỉ MAC. RustDesk gốc mặc định bật. Với phần mềm điều khiển từ xa
+thì `id` đúng là thứ người khác cần để bắt đầu — ở mạng công ty, quán cà phê hay
+khách sạn đó là tự khai. Nay **mặc định tắt**; vẫn bật lại được trong Cài đặt,
+nhưng phải là một lựa chọn có ý thức.
+
+**Một máy chỉ hiện một thẻ.** Ba máy trong mạng từng hiện thành năm thẻ vì phép so
+"cùng máy hay không" so cả tên người đăng nhập — cùng một máy trả lời ở hai tình
+trạng đăng nhập khác nhau thành hai máy. Nay so theo `id`.
 
 **Nhật ký truy cập** (trên web): trang *Máy của tôi* nay có bảng "ai đã điều
 khiển máy của bạn, lúc nào, từ IP nào". Bản ghi không sửa được và không mất khi
