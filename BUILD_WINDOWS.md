@@ -79,3 +79,47 @@ under `%APPDATA%\LTTNexus`; the DLL contains the baked LTT server/key/app-name.
 The launcher exe is still named `rustdesk.exe` (flutter runner target name, in
 `flutter/windows/runner/CMakeLists.txt` + `Runner.rc`) — renaming it is a
 pending branding item, separate from `APP_NAME`.
+
+---
+
+## Đóng gói file cài MỘT-FILE (cho tự cập nhật)
+
+Bản zip không tự cập nhật được: không ghi đè được exe đang chạy, và không biết
+người dùng để thư mục ở đâu. RustDesk đã có sẵn trình đóng gói tự-giải-nén —
+dùng lại nó thay vì thêm Inno Setup.
+
+```bash
+# 1. build ứng dụng như bình thường (xem phần trên) -> flutter/build/windows/...
+# 2. sinh dữ liệu nhúng
+cd libs/portable
+pip install -r requirements.txt          # brotli
+python generate.py \
+  -f ../../flutter/build/windows/x64/runner/Release/ \
+  -o . \
+  -e ../../flutter/build/windows/x64/runner/Release/LTTNexus.exe
+
+# 3. build gói tự-giải-nén (ra ~22MB, nhỏ hơn zip)
+cargo build --release
+# -> target/release/rustdesk-portable-packer.exe
+mv ../../target/release/rustdesk-portable-packer.exe \
+   ../../dist/LTTNexus-<ver>-win-x64-setup.exe
+```
+
+**Vì sao dùng được cho tự cập nhật:** gói tự-giải-nén **chuyển tiếp tham số**
+xuống exe bên trong, nên `LTTNexus-<ver>-win-x64-setup.exe --silent-install`
+chạy đúng đường cài sẵn có của bản gốc (`core_main.rs`), tự đè lên bản đang cài.
+
+**Phát hành:** thả file vào `data/nexus_dist/` trên máy chủ rồi khai trong
+`data/nexus_versions.json`:
+
+```json
+"windows": {
+  "url": "/nexus/dl/LTTNexus-<ver>-win-x64.zip",
+  "sha256": "...",
+  "setup_url": "/nexus/dl/LTTNexus-<ver>-win-x64-setup.exe",
+  "setup_sha256": "..."
+}
+```
+
+Thiếu `setup_url` thì client **không** rơi về zip — nó báo "bản này chưa có file
+cài tự động". Đoán bừa là hỏng ngầm.

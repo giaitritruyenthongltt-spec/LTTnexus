@@ -208,6 +208,93 @@ pub fn my_devices(base_url: &str) -> ResultType<String> {
     Ok(resp.text()?)
 }
 
+/// Tải bản cài mới rồi chạy nó im lặng — **tự cập nhật thật**, không bắt người
+/// dùng tự giải nén đè.
+///
+/// Trả chuỗi rỗng nếu thành công (tiến trình cài đã khởi động), ngược lại trả
+/// câu lỗi để giao diện hiện ra.
+///
+/// Ba chỗ CỐ Ý chặt tay, vì đây là đường tự động chạy một file thực thi trên
+/// máy người dùng:
+///
+/// 1. **Bắt buộc có `sha256` trong manifest** và phải khớp. Không hash thì
+///    không cài — một bản tải hỏng hoặc bị thay giữa đường sẽ chạy với đúng
+///    quyền của người dùng. Đây là hàng rào thật, không phải kiểm tra cho vui.
+/// 2. **Chỉ chấp nhận `https`.** Manifest trỏ `http` là từ chối.
+/// 3. **Không tự chạy khi chưa hỏi.** Hàm này chỉ được gọi sau khi người dùng
+///    bấm đồng ý cập nhật.
+///
+/// GỌI TỪ LUỒNG BLOCKING.
+#[cfg(windows)]
+pub fn tai_va_cai_ban_moi(base_url: &str) -> String {
+    use std::io::Write;
+
+    let base = base_url.trim_end_matches('/');
+    let url_manifest = format!("{}/nexus/version.json", base);
+    let client = match reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(600))
+        .build()
+    {
+        Ok(c) => c,
+        Err(e) => return format!("khong tao duoc ket noi: {e}"),
+    };
+    let body = match client.get(&url_manifest).send().and_then(|r| r.text()) {
+        Ok(t) => t,
+        Err(e) => return format!("khong tai duoc ban ke phien ban: {e}"),
+    };
+    let j: serde_json::Value = match serde_json::from_str(&body) {
+        Ok(v) => v,
+        Err(e) => return format!("ban ke phien ban hong: {e}"),
+    };
+    let win = &j["platforms"]["windows"];
+    // Ưu tiên `setup_url` (file cài một-file). Thiếu nó thì KHÔNG rơi về `url`:
+    // `url` là bản zip, chạy thẳng không được, và tự ý đoán là cách hỏng ngầm.
+    let url_file = win["setup_url"].as_str().unwrap_or("").trim().to_owned();
+    if url_file.is_empty() {
+        return "ban nay chua co file cai tu dong".to_owned();
+    }
+    let url_file = if url_file.starts_with('/') {
+        format!("{}{}", base, url_file)
+    } else {
+        url_file
+    };
+    if !url_file.starts_with("https://") {
+        return "URL ban cai phai la https".to_owned();
+    }
+    let mong_doi = win["setup_sha256"].as_str().unwrap_or("").trim().to_lowercase();
+    if mong_doi.len() != 64 {
+        return "ban ke phien ban thieu sha256 cua file cai".to_owned();
+    }
+
+    let du_lieu = match client.get(&url_file).send().and_then(|r| r.bytes()) {
+        Ok(b) => b,
+        Err(e) => return format!("khong tai duoc ban cai: {e}"),
+    };
+    let mut h = Sha256::new();
+    h.update(&du_lieu);
+    let that = hex_lower(&h.finalize());
+    if that != mong_doi {
+        return "ban cai tai ve KHONG khop sha256 - da huy".to_owned();
+    }
+
+    let dich = std::env::temp_dir().join("LTTNexus-update-setup.exe");
+    let ghi = std::fs::File::create(&dich).and_then(|mut f| f.write_all(&du_lieu));
+    if let Err(e) = ghi {
+        return format!("khong ghi duoc file tam: {e}");
+    }
+    // `--silent-install` là đường cài sẵn có của bản gốc: gói tự-giải-nén
+    // chuyển tiếp tham số xuống exe bên trong.
+    match std::process::Command::new(&dich).arg("--silent-install").spawn() {
+        Ok(_) => String::new(),
+        Err(e) => format!("khong chay duoc ban cai: {e}"),
+    }
+}
+
+#[cfg(not(windows))]
+pub fn tai_va_cai_ban_moi(_base_url: &str) -> String {
+    "tu cap nhat chi ho tro Windows o ban nay".to_owned()
+}
+
 /// Máy này có được NHẬN điều khiển vào không (Q98 — răng của thu phí)?
 ///
 /// * Chưa đăng nhập LTT → **true**: máy không do LTT quản, giữ nguyên hành vi
@@ -333,6 +420,67 @@ pub fn report_session_event(session_key: &str, event: &str, peer_id: &str, contr
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── Tự cập nhật: các hàng rào phải chặn TRƯỚC khi tải ────────────────────
+    //
+    // Không test được phần tải mạng ở unit test, nhưng ba lỗi nguy hiểm nhất
+    // đều nằm ở phần QUYẾT ĐỊNH trước đó: chấp nhận manifest không hash, chấp
+    // nhận http, hoặc rơi về bản zip. Tách ra để chốt được.
+
+    fn quyet_dinh_ban_cai(j: &serde_json::Value, base: &str) -> Result<(String, String), String> {
+        let win = &j["platforms"]["windows"];
+        let url = win["setup_url"].as_str().unwrap_or("").trim().to_owned();
+        if url.is_empty() {
+            return Err("ban nay chua co file cai tu dong".to_owned());
+        }
+        let url = if url.starts_with('/') { format!("{}{}", base, url) } else { url };
+        if !url.starts_with("https://") {
+            return Err("URL ban cai phai la https".to_owned());
+        }
+        let sha = win["setup_sha256"].as_str().unwrap_or("").trim().to_lowercase();
+        if sha.len() != 64 {
+            return Err("ban ke phien ban thieu sha256 cua file cai".to_owned());
+        }
+        Ok((url, sha))
+    }
+
+    #[test]
+    fn tu_choi_khi_thieu_sha256() {
+        let j = serde_json::json!({"platforms":{"windows":{"setup_url":"/nexus/dl/a.exe"}}});
+        assert!(quyet_dinh_ban_cai(&j, "https://x").is_err());
+    }
+
+    #[test]
+    fn tu_choi_sha256_khong_du_64_ky_tu() {
+        let j = serde_json::json!({"platforms":{"windows":
+            {"setup_url":"/nexus/dl/a.exe","setup_sha256":"abc123"}}});
+        assert!(quyet_dinh_ban_cai(&j, "https://x").is_err());
+    }
+
+    #[test]
+    fn tu_choi_http_khong_ma_hoa() {
+        let j = serde_json::json!({"platforms":{"windows":
+            {"setup_url":"http://x/a.exe","setup_sha256":"a".repeat(64)}}});
+        assert!(quyet_dinh_ban_cai(&j, "https://x").is_err());
+    }
+
+    #[test]
+    fn khong_roi_ve_ban_zip_khi_thieu_setup_url() {
+        // `url` la ban zip - chay thang khong duoc. Doan bua la hong ngam.
+        let j = serde_json::json!({"platforms":{"windows":
+            {"url":"/nexus/dl/a.zip","sha256":"a".repeat(64)}}});
+        assert!(quyet_dinh_ban_cai(&j, "https://x").is_err());
+    }
+
+    #[test]
+    fn chap_nhan_manifest_du_dieu_kien() {
+        let sha = "b".repeat(64);
+        let j = serde_json::json!({"platforms":{"windows":
+            {"setup_url":"/nexus/dl/LTTNexus-1.2.0-win-x64-setup.exe","setup_sha256":sha}}});
+        let (url, got) = quyet_dinh_ban_cai(&j, "https://app.lttstudios.com").unwrap();
+        assert_eq!(url, "https://app.lttstudios.com/nexus/dl/LTTNexus-1.2.0-win-x64-setup.exe");
+        assert_eq!(got.len(), 64);
+    }
 
     #[test]
     fn canonical_doi_theo_body_va_thoi_gian() {

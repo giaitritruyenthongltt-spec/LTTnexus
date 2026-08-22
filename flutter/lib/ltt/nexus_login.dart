@@ -39,6 +39,8 @@ class _NexusAccountBarState extends State<NexusAccountBar> {
   int _price = 0;
   String _updateUrl = ''; // != '' → có bản mới
   bool _dangKiem = false;      // đang kiểm bản mới (bấm tay)
+  bool _dangCai = false;       // đang tải + cài bản mới
+  String _loiCai = '';         // lỗi khi tự cập nhật
   String _ketQuaKiem = '';     // thông báo sau khi bấm kiểm
   Timer? _timer;
 
@@ -105,6 +107,31 @@ class _NexusAccountBarState extends State<NexusAccountBar> {
       _dangKiem = false;
       _updateUrl = u;
       _ketQuaKiem = u.isEmpty ? 'Đang dùng bản mới nhất.' : '';
+    });
+  }
+
+  /// Tải bản mới rồi tự cài. Chỉ chạy khi người dùng bấm — không bao giờ tự ý.
+  ///
+  /// Bản cài được **kiểm SHA-256** trước khi chạy (bên Rust). Nếu không khớp
+  /// thì huỷ: đây là đường tự chạy một file thực thi trên máy người dùng, nên
+  /// hàng rào phải thật.
+  Future<void> _tuCapNhat() async {
+    if (_dangCai) return;
+    setState(() {
+      _dangCai = true;
+      _loiCai = '';
+    });
+    String loi = 'khong ro';
+    try {
+      loi = await bind.nexusClientInstallUpdate(baseUrl: nexusServer());
+    } catch (e) {
+      loi = '$e';
+    }
+    if (!mounted) return;
+    setState(() {
+      _dangCai = false;
+      // Rỗng = bản cài đã khởi động; app sẽ được thay và bật lại.
+      _loiCai = loi;
     });
   }
 
@@ -183,6 +210,13 @@ class _NexusAccountBarState extends State<NexusAccountBar> {
               ],
             ),
           ),
+        if (_loiCai.isNotEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            child: Text('Không tự cập nhật được: $_loiCai',
+                style: const TextStyle(fontSize: 11.5, color: Color(0xFFE2AE55))),
+          ),
         if (_ketQuaKiem.isNotEmpty && _updateUrl.isEmpty)
           Container(
             width: double.infinity,
@@ -201,11 +235,25 @@ class _NexusAccountBarState extends State<NexusAccountBar> {
                   child: Text('Đã có bản LTT Nexus mới.',
                       style: TextStyle(fontSize: 12)),
                 ),
-                TextButton(
-                  onPressed: () => launchUrl(Uri.parse(_updateUrl)),
-                  child: Text('Cập nhật',
-                      style: TextStyle(color: MyTheme.accent, fontSize: 12)),
-                ),
+                if (_dangCai)
+                  const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 1.8))
+                else ...[
+                  TextButton(
+                    onPressed: _tuCapNhat,
+                    child: Text('Cập nhật ngay',
+                        style: TextStyle(color: MyTheme.accent, fontSize: 12)),
+                  ),
+                  // Vẫn giữ đường mở trang tải: tự cập nhật có thể hỏng (mạng,
+                  // quyền), và khi đó người dùng phải còn một lối tự làm.
+                  TextButton(
+                    onPressed: () => launchUrl(Uri.parse(_updateUrl)),
+                    child: Text('Trang tải',
+                        style: TextStyle(color: MyTheme.darkGray, fontSize: 11)),
+                  ),
+                ],
               ],
             ),
           ),

@@ -3115,6 +3115,12 @@ pub fn nexus_client_check_update(base_url: String) -> String {
 /// Phien ban LTT cua ban build nay (khac so cua RustDesk goc). Trang "Gioi
 /// thieu" hien ca hai: nguoi dung doi chieu so LTT voi trang tai, con so
 /// RustDesk giu minh bach ve goc AGPL.
+/// Tai + kiem sha256 + chay ban cai moi. Tra "" neu thanh cong, nguoc lai la
+/// cau loi. CHAM MANG + CHAY TIEN TRINH -> phai goi tren worker cua frb.
+pub fn nexus_client_install_update(base_url: String) -> String {
+    crate::nexus_client::tai_va_cai_ban_moi(&base_url)
+}
+
 pub fn nexus_client_ltt_version() -> SyncReturn<String> {
     SyncReturn(crate::nexus_client::LTT_VERSION.to_owned())
 }
