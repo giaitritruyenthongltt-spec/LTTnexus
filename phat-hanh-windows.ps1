@@ -29,10 +29,8 @@ $zip  = Join-Path $dist "LTTNexus-$Version-win-x64.zip"
 # Dat ten khac (vd "-setup.exe") thi bam dup CHI CHAY BAN TAM trong %LOCALAPPDATA%
 # chu KHONG cai - va no chay binh thuong nen khong ai biet la da khong cai.
 # Da dinh loi nay: ban 1.2.0/1.3.0 phat hanh voi ten "-setup.exe".
-$setup = Join-Path $dist "LTTNexus-$Version-win-x64-install.exe"
-if (-not ($setup.ToLower().EndsWith("install.exe"))) {
-    throw "Ten file cai phai ket thuc bang install.exe (xem ghi chu tren)"
-}
+$setupTen = "LTTNexus-$Version-win-x64-install.exe"
+$setup = Join-Path $dist $setupTen
 
 if (-not (Test-Path (Join-Path $rel 'LTTNexus.exe'))) {
     throw "Chua build: khong thay $rel\LTTNexus.exe"
@@ -78,13 +76,31 @@ $w.available    = $true
 $w.url          = "/nexus/dl/LTTNexus-$Version-win-x64.zip"
 $w.sha256       = $zipHash
 $w.size         = $zipSize
-$w | Add-Member -NotePropertyName setup_url    -NotePropertyValue "/nexus/dl/LTTNexus-$Version-win-x64-setup.exe" -Force
+# DAN XUAT tu ten file da chep len may chu. Truoc day day la mot chuoi viet
+# cung THU HAI, doc lap voi $setup - doi mot cho ma quen cho kia thi ban ke
+# tro vao file khong ton tai, va no hong o phia NGUOI DUNG chu khong hong luc
+# phat hanh, nen khong ai thay. Da dinh dung loi nay o 1.4.0.
+$w | Add-Member -NotePropertyName setup_url    -NotePropertyValue "/nexus/dl/$setupTen" -Force
 $w | Add-Member -NotePropertyName setup_sha256 -NotePropertyValue $setupHash -Force
 $w | Add-Member -NotePropertyName setup_size   -NotePropertyValue $setupSize -Force
 
 # UTF-8 KHONG BOM - quy tac bat buoc so 1 cua du an (json.load vo neu co BOM)
 $json = ($m | ConvertTo-Json -Depth 10)
 [IO.File]::WriteAllText($manifestPath, $json + "`n", (New-Object Text.UTF8Encoding($false)))
+
+# Kiem SAU KHI ghi: doc lai chinh ban ke vua ghi, doi chieu voi file tren dia.
+# Chot chan phai kiem KET QUA, khong kiem bien vua gan - ban truoc kiem
+# `$setup.EndsWith("install.exe")` ngay sau khi gan $setup ket thuc bang do, tuc
+# la mot cau hoi luon dung, khong bao gio no duoc.
+$kiem = [IO.File]::ReadAllText($manifestPath, [Text.UTF8Encoding]::new($false)) | ConvertFrom-Json
+$urlCai = $kiem.platforms.windows.setup_url
+if (-not $urlCai.ToLower().EndsWith("install.exe")) {
+    throw "Ban ke tro toi '$urlCai' - ten PHAI ket thuc bang install.exe, neu khong bam dup se khong cai"
+}
+$fileCai = Join-Path $distDir (Split-Path $urlCai -Leaf)
+if (-not (Test-Path $fileCai)) {
+    throw "Ban ke tro toi '$urlCai' nhung khong co file do trong $distDir"
+}
 
 Write-Host ''
 Write-Host "Da phat hanh $Version" -ForegroundColor Green
