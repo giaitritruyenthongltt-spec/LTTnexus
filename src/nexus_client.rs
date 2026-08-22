@@ -329,7 +329,7 @@ pub fn may_control() -> bool {
 
 /// Phiên bản LTT của bản build này (khác version RustDesk gốc 1.4.9). So với
 /// `manifest.version` ở `/nexus/version.json` để biết có bản mới không.
-pub const LTT_VERSION: &str = "1.1.0";
+pub const LTT_VERSION: &str = "1.2.0";
 
 fn version_gt(a: &str, b: &str) -> bool {
     // a > b theo semver đơn giản (x.y.z; phần thiếu coi như 0).
