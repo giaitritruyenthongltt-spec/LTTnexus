@@ -59,6 +59,24 @@ nhưng phải là một lựa chọn có ý thức.
 "cùng máy hay không" so cả tên người đăng nhập — cùng một máy trả lời ở hai tình
 trạng đăng nhập khác nhau thành hai máy. Nay so theo `id`.
 
+**macOS: có bản build, có tên đúng, và tự cập nhật được.** Trước đây macOS chưa
+từng ra được file nào. Nay có workflow riêng `ltt-macos.yml` (2 job thay vì 14 job
+của "Flutter Nightly") dựng `.dmg` cho cả Apple Silicon lẫn Intel, và gói ứng dụng
+đã đổi tên `RustDesk.app` → **`LTTNexus.app`** cùng định danh `com.lttstudios.nexus`
+(khớp với bản iOS). Tự cập nhật trên macOS: tải `.dmg` → đối chiếu SHA-256 → gắn
+ảnh đĩa → `ditto` gói `.app` đè lên bản cũ → mở lại. Việc tráo do một kịch bản rời
+làm sau khi app thoát, vì thứ phải thay chính là gói đang chạy.
+
+> ⚠️ Bản macOS **chưa ký**. Lần mở đầu tiên macOS sẽ chặn; bấm chuột phải → *Open*,
+> hoặc chạy `xattr -dr com.apple.quarantine /Applications/LTTNexus.app`. Ký và
+> notarize cần tài khoản Apple Developer 99 USD/năm.
+
+**Android/iOS: nút cập nhật mở đúng file, không mở trang tải.** Hai hệ này không
+cho cài im lặng — Android bắt người dùng xác nhận ở màn hình cài đặt của chính nó,
+iOS không có API cài. Trước đây nút *Cập nhật* mở trang tải rồi để người dùng tự
+tìm; trên điện thoại đó là chỗ người ta bỏ cuộc. Nay nó mở **thẳng** file `.apk`
+(hoặc `.ipa`) của đúng nền tảng đang chạy.
+
 **Nhật ký truy cập** (trên web): trang *Máy của tôi* nay có bảng "ai đã điều
 khiển máy của bạn, lúc nào, từ IP nào". Bản ghi không sửa được và không mất khi
 thu hồi máy.

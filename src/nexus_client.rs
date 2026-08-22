@@ -281,6 +281,83 @@ fn ma_hoa_url(raw: &str) -> String {
     ra
 }
 
+/// Khoá nền tảng trong bản kê phiên bản, theo hệ đang chạy.
+pub fn khoa_nen_tang() -> &'static str {
+    if cfg!(windows) {
+        "windows"
+    } else if cfg!(target_os = "macos") {
+        "macos"
+    } else if cfg!(target_os = "android") {
+        "android"
+    } else if cfg!(target_os = "ios") {
+        "ios"
+    } else {
+        "linux"
+    }
+}
+
+/// Tải bản cài của nền tảng đang chạy và **đối chiếu SHA-256**.
+///
+/// Tách riêng khỏi bước cài vì bước cài khác nhau hoàn toàn giữa các hệ, còn ba
+/// hàng rào dưới đây thì phải giống hệt nhau ở mọi hệ — và một hàng rào chỉ có ở
+/// một nền tảng là hàng rào sẽ bị quên khi thêm nền tảng thứ hai:
+///
+/// 1. **Bắt buộc có `sha256`** và phải khớp. Không hash thì không cài.
+/// 2. **Chỉ chấp nhận `https`.**
+/// 3. Chỉ chạy sau khi người dùng đã bấm đồng ý.
+///
+/// GỌI TỪ LUỒNG BLOCKING.
+fn tai_ban_cai(base_url: &str) -> Result<Vec<u8>, String> {
+    let base = base_url.trim_end_matches('/');
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(600))
+        .build()
+        .map_err(|e| format!("khong tao duoc ket noi: {e}"))?;
+    let body = client
+        .get(&format!("{}/nexus/version.json", base))
+        .send()
+        .and_then(|r| r.text())
+        .map_err(|e| format!("khong tai duoc ban ke phien ban: {e}"))?;
+    let j: serde_json::Value =
+        serde_json::from_str(&body).map_err(|e| format!("ban ke phien ban hong: {e}"))?;
+    let muc = &j["platforms"][khoa_nen_tang()];
+
+    // Ưu tiên `setup_url` (file cài). Thiếu nó thì KHÔNG rơi về `url`: `url` là
+    // bản nén, không cài được, và tự ý đoán là cách hỏng ngầm.
+    let url_file = muc["setup_url"].as_str().unwrap_or("").trim().to_owned();
+    if url_file.is_empty() {
+        return Err("ban nay chua co file cai tu dong".to_owned());
+    }
+    let url_file = if url_file.starts_with('/') {
+        format!("{}{}", base, url_file)
+    } else {
+        url_file
+    };
+    if !url_file.starts_with("https://") {
+        return Err("URL ban cai phai la https".to_owned());
+    }
+    let mong_doi = muc["setup_sha256"]
+        .as_str()
+        .unwrap_or("")
+        .trim()
+        .to_lowercase();
+    if mong_doi.len() != 64 {
+        return Err("ban ke phien ban thieu sha256 cua file cai".to_owned());
+    }
+
+    let du_lieu = client
+        .get(&url_file)
+        .send()
+        .and_then(|r| r.bytes())
+        .map_err(|e| format!("khong tai duoc ban cai: {e}"))?;
+    let mut h = Sha256::new();
+    h.update(&du_lieu);
+    if hex_lower(&h.finalize()) != mong_doi {
+        return Err("ban cai tai ve KHONG khop sha256 - da huy".to_owned());
+    }
+    Ok(du_lieu.to_vec())
+}
+
 /// Tải bản cài mới rồi chạy nó im lặng — **tự cập nhật thật**, không bắt người
 /// dùng tự giải nén đè.
 ///
@@ -302,57 +379,12 @@ fn ma_hoa_url(raw: &str) -> String {
 pub fn tai_va_cai_ban_moi(base_url: &str) -> String {
     use std::io::Write;
 
-    let base = base_url.trim_end_matches('/');
-    let url_manifest = format!("{}/nexus/version.json", base);
-    let client = match reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(600))
-        .build()
-    {
-        Ok(c) => c,
-        Err(e) => return format!("khong tao duoc ket noi: {e}"),
-    };
-    let body = match client.get(&url_manifest).send().and_then(|r| r.text()) {
-        Ok(t) => t,
-        Err(e) => return format!("khong tai duoc ban ke phien ban: {e}"),
-    };
-    let j: serde_json::Value = match serde_json::from_str(&body) {
+    let du_lieu = match tai_ban_cai(base_url) {
         Ok(v) => v,
-        Err(e) => return format!("ban ke phien ban hong: {e}"),
+        Err(e) => return e,
     };
-    let win = &j["platforms"]["windows"];
-    // Ưu tiên `setup_url` (file cài một-file). Thiếu nó thì KHÔNG rơi về `url`:
-    // `url` là bản zip, chạy thẳng không được, và tự ý đoán là cách hỏng ngầm.
-    let url_file = win["setup_url"].as_str().unwrap_or("").trim().to_owned();
-    if url_file.is_empty() {
-        return "ban nay chua co file cai tu dong".to_owned();
-    }
-    let url_file = if url_file.starts_with('/') {
-        format!("{}{}", base, url_file)
-    } else {
-        url_file
-    };
-    if !url_file.starts_with("https://") {
-        return "URL ban cai phai la https".to_owned();
-    }
-    let mong_doi = win["setup_sha256"].as_str().unwrap_or("").trim().to_lowercase();
-    if mong_doi.len() != 64 {
-        return "ban ke phien ban thieu sha256 cua file cai".to_owned();
-    }
-
-    let du_lieu = match client.get(&url_file).send().and_then(|r| r.bytes()) {
-        Ok(b) => b,
-        Err(e) => return format!("khong tai duoc ban cai: {e}"),
-    };
-    let mut h = Sha256::new();
-    h.update(&du_lieu);
-    let that = hex_lower(&h.finalize());
-    if that != mong_doi {
-        return "ban cai tai ve KHONG khop sha256 - da huy".to_owned();
-    }
-
-    let dich = std::env::temp_dir().join("LTTNexus-update-setup.exe");
-    let ghi = std::fs::File::create(&dich).and_then(|mut f| f.write_all(&du_lieu));
-    if let Err(e) = ghi {
+    let dich = std::env::temp_dir().join("LTTNexus-update-install.exe");
+    if let Err(e) = std::fs::File::create(&dich).and_then(|mut f| f.write_all(&du_lieu)) {
         return format!("khong ghi duoc file tam: {e}");
     }
     // `--silent-install` là đường cài sẵn có của bản gốc: gói tự-giải-nén
@@ -363,10 +395,127 @@ pub fn tai_va_cai_ban_moi(base_url: &str) -> String {
     }
 }
 
-#[cfg(not(windows))]
-pub fn tai_va_cai_ban_moi(_base_url: &str) -> String {
-    "tu cap nhat chi ho tro Windows o ban nay".to_owned()
+/// macOS: tải `.dmg`, gắn nó, rồi **để một kịch bản rời làm việc tráo đổi**.
+///
+/// Không tráo tại chỗ trong tiến trình này được: gói `.app` đang chạy chính là
+/// thứ phải bị thay. Nên hàm này viết ra một kịch bản `sh`, chạy nó tách rời, rồi
+/// trả về; kịch bản chờ tiến trình này thoát mới tráo và mở lại app.
+///
+/// `ditto` chứ không `cp -R`: nó giữ đúng quyền, cờ mở rộng và symlink bên trong
+/// gói `.app` — `cp` làm hỏng chữ ký và quyền thực thi một cách lặng lẽ.
+///
+/// GỌI TỪ LUỒNG BLOCKING.
+#[cfg(target_os = "macos")]
+pub fn tai_va_cai_ban_moi(base_url: &str) -> String {
+    use std::io::Write;
+
+    let du_lieu = match tai_ban_cai(base_url) {
+        Ok(v) => v,
+        Err(e) => return e,
+    };
+
+    // Gói `.app` đang chạy: <app>/Contents/MacOS/<exe> → lùi ba cấp.
+    let exe = match std::env::current_exe() {
+        Ok(p) => p,
+        Err(e) => return format!("khong biet dang chay o dau: {e}"),
+    };
+    let goi_app = match exe.parent().and_then(|p| p.parent()).and_then(|p| p.parent()) {
+        Some(p) if p.extension().map(|x| x == "app").unwrap_or(false) => p.to_path_buf(),
+        // Chạy từ cây build (không nằm trong `.app`) thì không có gì để tráo.
+        _ => return "chi tu cap nhat duoc khi chay tu goi .app da cai".to_owned(),
+    };
+
+    let dmg = std::env::temp_dir().join("LTTNexus-update.dmg");
+    if let Err(e) = std::fs::File::create(&dmg).and_then(|mut f| f.write_all(&du_lieu)) {
+        return format!("khong ghi duoc file tam: {e}");
+    }
+
+    let kich_ban = std::env::temp_dir().join("LTTNexus-update.sh");
+    let noi_dung = format!(
+        r#"#!/bin/sh
+# Sinh tu dong boi LTT Nexus. Cho app thoat roi trao goi .app moi vao.
+PID={pid}
+DMG="{dmg}"
+DICH="{dich}"
+
+i=0
+while kill -0 "$PID" 2>/dev/null && [ $i -lt 100 ]; do sleep 0.2; i=$((i+1)); done
+kill -0 "$PID" 2>/dev/null && kill -TERM "$PID" && sleep 2
+
+MNT=$(hdiutil attach -nobrowse -readonly "$DMG" | grep -o '/Volumes/.*' | head -1)
+[ -z "$MNT" ] && exit 1
+NGUON=$(find "$MNT" -maxdepth 1 -name '*.app' | head -1)
+if [ -n "$NGUON" ]; then
+  rm -rf "$DICH"
+  ditto "$NGUON" "$DICH"
+fi
+hdiutil detach "$MNT" -quiet 2>/dev/null
+rm -f "$DMG"
+[ -n "$NGUON" ] && open -n "$DICH"
+rm -f "$0"
+"#,
+        pid = std::process::id(),
+        dmg = dmg.display(),
+        dich = goi_app.display(),
+    );
+    if let Err(e) = std::fs::write(&kich_ban, noi_dung) {
+        return format!("khong ghi duoc kich ban cai: {e}");
+    }
+    match std::process::Command::new("/bin/sh").arg(&kich_ban).spawn() {
+        Ok(_) => String::new(),
+        Err(e) => format!("khong chay duoc kich ban cai: {e}"),
+    }
 }
+
+/// Android/iOS/Linux: chưa tự cài được — nói rõ vì sao, đừng nói chung chung.
+///
+/// * **Android** cấm cài im lặng: hệ điều hành BẮT người dùng bấm xác nhận ở màn
+///   hình cài đặt của chính nó. Đường đúng là tải file `.apk` rồi mở nó, và đó là
+///   việc của lớp giao diện (xem `duong_tai_thang`), không phải của hàm này.
+/// * **iOS** không có API cài ứng dụng. Nâng cấp đi qua SideStore/TestFlight.
+#[cfg(not(any(windows, target_os = "macos")))]
+pub fn tai_va_cai_ban_moi(_base_url: &str) -> String {
+    if cfg!(target_os = "android") {
+        "Android khong cho cai im lang - hay tai file APK roi bam cai".to_owned()
+    } else if cfg!(target_os = "ios") {
+        "iOS phai nang cap qua SideStore hoac TestFlight".to_owned()
+    } else {
+        "he dieu hanh nay chua ho tro tu cai".to_owned()
+    }
+}
+
+/// URL tải THẲNG file cài cho nền tảng đang chạy (rỗng nếu bản kê chưa có).
+///
+/// Dùng cho các hệ không tự cài được: mở đúng file thay vì mở trang tải rồi bắt
+/// người dùng tự tìm — trên điện thoại việc "tự tìm đúng file" là chỗ người ta bỏ
+/// cuộc.
+pub fn duong_tai_thang(base_url: &str) -> String {
+    let base = base_url.trim_end_matches('/').to_owned();
+    let body = match http().get(&format!("{}/nexus/version.json", base)).send() {
+        Ok(r) => r.text().unwrap_or_default(),
+        Err(_) => return String::new(),
+    };
+    let j: serde_json::Value = match serde_json::from_str(&body) {
+        Ok(v) => v,
+        Err(_) => return String::new(),
+    };
+    let muc = &j["platforms"][khoa_nen_tang()];
+    let u = muc["setup_url"]
+        .as_str()
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| muc["url"].as_str().unwrap_or(""))
+        .trim()
+        .to_owned();
+    if u.is_empty() {
+        return String::new();
+    }
+    if u.starts_with('/') {
+        format!("{}{}", base, u)
+    } else {
+        u
+    }
+}
+
 
 /// Máy này có được NHẬN điều khiển vào không (Q98 — răng của thu phí)?
 ///

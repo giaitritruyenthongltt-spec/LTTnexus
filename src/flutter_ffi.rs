@@ -3106,6 +3106,13 @@ pub fn nexus_client_my_devices(base_url: String) -> String {
     }
 }
 
+/// URL tải THẲNG file cài cho nền tảng đang chạy ("" nếu bản kê chưa có).
+/// Dùng ở Android/iOS — nơi không tự cài được — để mở đúng file thay vì mở trang
+/// tải rồi bắt người dùng tự tìm. HTTP nên chạy trên worker.
+pub fn nexus_client_direct_download_url(base_url: String) -> String {
+    crate::nexus_client::duong_tai_thang(&base_url)
+}
+
 /// URL mở trình duyệt kèm vé đăng nhập một lần (B3) — để bấm "Nạp credit" không
 /// phải gõ mật khẩu lần thứ hai. Xin vé thất bại thì trả thẳng `base_url + dich`
 /// (đăng nhập tay), chứ KHÔNG chặn người dùng lại. HTTP nên chạy trên worker.

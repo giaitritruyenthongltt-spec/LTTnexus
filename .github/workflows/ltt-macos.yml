@@ -1,0 +1,191 @@
+# LTT - build RIENG ban macOS, khong keo theo 13 job kia.
+#
+# Vi sao co file nay: "Flutter Nightly Build" dung ca Windows/Linux/Android/
+# Flatpak nen mat 1-2 tieng. Lay mot file .dmg chi can hai viec: sinh cau noi
+# (bridge) va build macOS. Repo public nen Actions mien phi, nhung thoi gian cho
+# cua nguoi dung thi khong mien phi.
+#
+# Chay: tab Actions -> "LTT - Build macOS (DMG chua ky)" -> Run workflow.
+# Ket qua: hai artifact `LTTNexus-macos-aarch64-dmg` va `LTTNexus-macos-x86_64-dmg`.
+#
+# FILE CHUA KY. macOS chan lan mo dau ("khong the kiem tra ma doc"). Nguoi dung
+# phai bam chuot phai -> Open, hoac chay:
+#     xattr -dr com.apple.quarantine /Applications/LTTNexus.app
+# Ky + notarize can tai khoan Apple Developer 99 USD/nam; cac buoc ky da co san
+# trong `flutter-build.yml` va tu bat khi co secret MACOS_P12_BASE64.
+#
+# File .dmg nay chinh la thu ma duong TU CAP NHAT tai ve (ban macOS cua
+# `nexus_client::tai_va_cai_ban_moi`): no gan .dmg, `ditto` goi .app de len ban
+# cu roi mo lai. Nen ten goi PHAI la `LTTNexus.app` - dat o
+# `flutter/macos/Runner/Configs/AppInfo.xcconfig`.
+name: LTT - Build macOS (DMG chua ky)
+
+on:
+  workflow_dispatch:
+
+env:
+  SCITER_RUST_VERSION: "1.75"
+  RUST_VERSION: "1.75"
+  MAC_RUST_VERSION: "1.81" # cidre yeu cau 1.81 tren macos
+  CARGO_NDK_VERSION: "3.1.2"
+  LLVM_VERSION: "15.0.6"
+  FLUTTER_VERSION: "3.24.5"
+  TAG_NAME: "ltt-macos"
+  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+  VCPKG_COMMIT_ID: "120deac3062162151622ca4860575a33844ba10b"
+  VERSION: "1.4.9"
+  MACOS_P12_BASE64: "${{ secrets.MACOS_P12_BASE64 }}"
+  UPLOAD_ARTIFACT: "true"
+
+jobs:
+  generate-bridge:
+    uses: ./.github/workflows/bridge.yml
+
+  build-macos:
+    name: build LTT Nexus macOS dmg
+    runs-on: ${{ matrix.job.os }}
+    needs: [generate-bridge]
+    strategy:
+      fail-fast: false
+      matrix:
+        job:
+          # macos-14 = Apple Silicon. Phan lon may Mac dang dung la loai nay.
+          - {
+              target: aarch64-apple-darwin,
+              os: macos-14,
+              arch: aarch64,
+              vcpkg-triplet: arm64-osx,
+              extra-build-args: "--screencapturekit",
+            }
+          # Van build ban Intel: may cu chua thay het, bo qua nghia la nguoi dung
+          # Intel khong co duong nao ca.
+          - {
+              target: x86_64-apple-darwin,
+              os: macos-15-intel,
+              arch: x86_64,
+              vcpkg-triplet: x64-osx,
+              extra-build-args: "",
+            }
+    steps:
+      - name: Export GitHub Actions cache environment variables
+        uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+      - name: Checkout source code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          submodules: recursive
+
+      - name: Install build runtime
+        run: |
+          brew install llvm create-dmg
+          if command -v pkg-config &>/dev/null; then
+            echo "pkg-config already installed"
+          else
+            brew install pkg-config
+          fi
+
+      - name: Install NASM
+        run: |
+          # NASM 2.16.x tu ban phat hanh chinh thuc. KHONG dung `brew install nasm`
+          # (ra NASM 3.x - viet lai hoan toan, doi cu phap, aom can 2.x cho phan
+          # assembly x86_64).
+          wget https://www.nasm.us/pub/nasm/releasebuilds/2.16.03/macosx/nasm-2.16.03-macosx.zip
+          unzip nasm-2.16.03-macosx.zip
+          sudo cp nasm-2.16.03/nasm /usr/local/bin/nasm
+          nasm --version
+
+      - name: Install flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: "stable"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Patch flutter
+        run: |
+          cd $(dirname $(dirname $(which flutter)))
+          [[ "3.24.5" == ${{env.FLUTTER_VERSION}} ]] && git apply ${{ github.workspace }}/.github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff
+
+      - name: Workaround for flutter issue
+        shell: bash
+        run: |
+          cd "$(dirname "$(which flutter)")"
+          # https://github.com/flutter/flutter/issues/133533
+          sed -i -e 's/_setFramesEnabledState(false);/\/\/_setFramesEnabledState(false);/g' ../packages/flutter/lib/src/scheduler/binding.dart
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
+        with:
+          toolchain: ${{ env.MAC_RUST_VERSION }}
+          targets: ${{ matrix.job.target }}
+          components: "rustfmt"
+
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+        with:
+          prefix-key: ${{ matrix.job.os }}
+
+      - name: Restore bridge files
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: bridge-artifact
+          path: ./
+
+      - name: Setup vcpkg with Github Actions binary cache
+        uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2 # v11
+        with:
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
+          doNotCache: false
+
+      - name: Install vcpkg dependencies
+        run: |
+          if ! $VCPKG_ROOT/vcpkg install --x-install-root="$VCPKG_ROOT/installed"; then
+            find "${VCPKG_ROOT}/" -name "*.log" | while read -r _1; do
+              echo "$_1:"; echo "======"; cat "$_1"; echo "======"; echo ""
+            done
+            exit 1
+          fi
+
+      - name: Build LTT Nexus
+        run: |
+          if [ "${{ matrix.job.target }}" = "aarch64-apple-darwin" ]; then
+            MIN_MACOS_VERSION="12.3"
+            sed -i -e "s/MACOSX_DEPLOYMENT_TARGET\=[0-9]*.[0-9]*/MACOSX_DEPLOYMENT_TARGET=${MIN_MACOS_VERSION}/" build.py
+            sed -i -e "s/platform :osx, '.*'/platform :osx, '${MIN_MACOS_VERSION}'/" flutter/macos/Podfile
+            sed -i -e "s/osx_minimum_system_version = \"[0-9]*.[0-9]*\"/osx_minimum_system_version = \"${MIN_MACOS_VERSION}\"/" Cargo.toml
+            sed -i -e "s/MACOSX_DEPLOYMENT_TARGET = [0-9]*.[0-9]*;/MACOSX_DEPLOYMENT_TARGET = ${MIN_MACOS_VERSION};/" flutter/macos/Runner.xcodeproj/project.pbxproj
+          fi
+          ./build.py --flutter --hwcodec --unix-file-copy-paste ${{ matrix.job.extra-build-args }}
+
+      - name: Show what was built
+        run: ls -la ./flutter/build/macos/Build/Products/Release/ || true
+
+      - name: Create unsigned dmg
+        run: |
+          # TIM goi .app thay vi doan duong dan. Da dinh dung loi nay o ban iOS:
+          # `flutter build ipa` de .app trong .xcarchive chu khong o cho doan truoc.
+          APP=$(find ./flutter/build/macos/Build/Products/Release -maxdepth 1 -name '*.app' | head -1)
+          if [ -z "$APP" ]; then
+            echo "KHONG thay goi .app nao - build that bai o buoc truoc"
+            find ./flutter/build/macos -maxdepth 4 -name '*.app' || true
+            exit 1
+          fi
+          echo "goi .app: $APP"
+          TEN=$(basename "$APP")
+          CREATE_DMG="$(readlink -f "$(command -v create-dmg)")"
+          # Runner cua GitHub hay khong thao duoc anh dia ngay lan dau.
+          sed -i -e 's/MAXIMUM_UNMOUNTING_ATTEMPTS=3/MAXIMUM_UNMOUNTING_ATTEMPTS=7/' "$CREATE_DMG"
+          create-dmg \
+            --icon "$TEN" 200 190 --hide-extension "$TEN" \
+            --window-size 800 400 --app-drop-link 600 185 \
+            "LTTNexus-${{ matrix.job.arch }}.dmg" "$APP"
+          echo "SHA-256:"
+          shasum -a 256 "LTTNexus-${{ matrix.job.arch }}.dmg"
+
+      - name: Upload dmg
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: LTTNexus-macos-${{ matrix.job.arch }}-dmg
+          path: LTTNexus-${{ matrix.job.arch }}.dmg

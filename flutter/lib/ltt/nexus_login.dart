@@ -142,7 +142,18 @@ class _NexusAccountBarState extends State<NexusAccountBar> {
     });
     String loi = 'khong ro';
     try {
-      loi = await bind.nexusClientInstallUpdate(baseUrl: nexusServer());
+      if (isAndroid || isIOS) {
+        // Hai hệ này KHÔNG cho cài im lặng: Android bắt người dùng xác nhận ở
+        // màn hình cài đặt của chính nó, iOS không có API cài. Mở thẳng đúng
+        // file thay vì mở trang tải — trên điện thoại, "tự tìm đúng file" là
+        // chỗ người ta bỏ cuộc.
+        final u =
+            await bind.nexusClientDirectDownloadUrl(baseUrl: nexusServer());
+        await launchUrl(Uri.parse(u.isEmpty ? _updateUrl : u));
+        loi = '';
+      } else {
+        loi = await bind.nexusClientInstallUpdate(baseUrl: nexusServer());
+      }
     } catch (e) {
       loi = '$e';
     }

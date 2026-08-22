@@ -5,10 +5,18 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = RustDesk
+PRODUCT_NAME = LTTNexus
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.carriez.flutterHbb
+PRODUCT_BUNDLE_IDENTIFIER = com.lttstudios.nexus
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 Purslane Tech Pte. Ltd. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 LTT Studios — based on RustDesk by Purslane Tech Pte. Ltd. (AGPL-3.0)
+
+// LTT Nexus: ba dong tren da doi so voi ban goc RustDesk.
+//   PRODUCT_NAME       -> ten goi .app va tieu de cua so
+//   PRODUCT_BUNDLE_IDENTIFIER -> dinh danh cai dat, PHAI khop voi ban iOS
+//                                (com.lttstudios.nexus) de nguoi dung khong thay
+//                                hai danh tinh khac nhau tren hai thiet bi Apple
+//   PRODUCT_COPYRIGHT  -> ghi cong AGPL: giu nguyen ten RustDesk, day la yeu cau
+//                         cua giay phep chu khong phai lich su
