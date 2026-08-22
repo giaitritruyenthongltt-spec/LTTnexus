@@ -129,8 +129,37 @@ class _PeerTabPageState extends State<PeerTabPage>
                 )),
               ),
             ).paddingOnly(right: stateGlobal.isPortrait.isTrue ? 0 : 12)),
+        _nhanGiaiThichTab(model),
         _createPeersView(),
       ],
+    );
+  }
+
+  /// Mot dong noi ro danh sach ben duoi LA GI.
+  ///
+  /// Vi sao can: app co HAI danh sach may canh nhau — "May cua toi" (theo tai
+  /// khoan LTT) o thanh ben, va cac tab cua RustDesk o day. Tab "Da tim thay"
+  /// liet ke may quet duoc trong mang LAN, KHONG lien quan tai khoan. Chu san
+  /// pham nhin vao da hieu nham thanh "nhat ky chung cua ca may chu" — mot danh
+  /// sach khong noi no la gi thi nguoi doc se tu gan nghia, va ho gan sai.
+  Widget _nhanGiaiThichTab(PeerTabModel model) {
+    const khoa = [
+      'ltt_tab_tip_recent',
+      'ltt_tab_tip_fav',
+      'ltt_tab_tip_lan',
+      'ltt_tab_tip_ab',
+      'ltt_tab_tip_group',
+    ];
+    final i = model.currentTab;
+    if (i < 0 || i >= khoa.length || model.multiSelectionMode) {
+      return const SizedBox.shrink();
+    }
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        translate(khoa[i]),
+        style: TextStyle(fontSize: 11.5, color: MyTheme.darkGray),
+      ).marginOnly(left: 4, top: 2, bottom: 2),
     );
   }
 

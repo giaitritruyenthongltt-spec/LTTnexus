@@ -22,7 +22,17 @@ $ErrorActionPreference = 'Stop'
 $rel  = Join-Path $Repo 'flutter\build\windows\x64\runner\Release'
 $dist = Join-Path $Repo 'dist'
 $zip  = Join-Path $dist "LTTNexus-$Version-win-x64.zip"
-$setup = Join-Path $dist "LTTNexus-$Version-win-x64-setup.exe"
+# TEN FILE PHAI KET THUC BANG "install.exe" - day la mot rang buoc THAT, khong
+# phai quy uoc dat ten. `libs/portable/src/main.rs`:
+#     let click_setup = args.is_empty() && arg_exe.ends_with("install.exe");
+#     if click_setup { args = vec!["--install"]; }
+# Dat ten khac (vd "-setup.exe") thi bam dup CHI CHAY BAN TAM trong %LOCALAPPDATA%
+# chu KHONG cai - va no chay binh thuong nen khong ai biet la da khong cai.
+# Da dinh loi nay: ban 1.2.0/1.3.0 phat hanh voi ten "-setup.exe".
+$setup = Join-Path $dist "LTTNexus-$Version-win-x64-install.exe"
+if (-not ($setup.ToLower().EndsWith("install.exe"))) {
+    throw "Ten file cai phai ket thuc bang install.exe (xem ghi chu tren)"
+}
 
 if (-not (Test-Path (Join-Path $rel 'LTTNexus.exe'))) {
     throw "Chua build: khong thay $rel\LTTNexus.exe"

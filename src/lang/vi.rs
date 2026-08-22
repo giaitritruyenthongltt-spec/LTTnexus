@@ -767,6 +767,11 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("conn-e2ee-unavailable-tip", "Không thể xác minh mã hóa đầu cuối.\nThiết bị từ xa có thể vẫn đang được thiết lập. Hãy thử lại sau.\nNếu điều này tiếp tục xảy ra, máy chủ có thể không đáng tin cậy.\nVẫn tiếp tục?"),
         ("About LTT Nexus", "Về LTT Nexus"),
         ("Based on RustDesk", "Dựa trên RustDesk"),
+        ("ltt_tab_tip_recent", "Máy bạn đã kết nối gần đây — lưu trên máy này, không phải danh sách tài khoản."),
+        ("ltt_tab_tip_fav", "Máy bạn đã đánh dấu yêu thích — lưu trên máy này."),
+        ("ltt_tab_tip_lan", "Máy quét thấy trong mạng nội bộ — KHÔNG thuộc tài khoản LTT của bạn. Máy của tài khoản nằm ở «Máy của tôi» bên trái."),
+        ("ltt_tab_tip_ab", "Sổ địa chỉ — lưu trên máy này."),
+        ("ltt_tab_tip_group", "Nhóm thiết bị."),
         ("based_on_rustdesk_tip", "dựa trên RustDesk của Purslane Tech Pte. Ltd."),
         ("ltt_slogan_tip", "Điều khiển máy từ xa — do LTT Studios vận hành."),
     ].iter().cloned().collect();

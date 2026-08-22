@@ -30,6 +30,22 @@ mật khẩu lần thứ hai. Nay ứng dụng tự xin một **vé đăng nhậ
 thiết bị đã có, nên trình duyệt mở ra là đã đăng nhập sẵn. Vé sống 90 giây và
 dùng đúng một lần; xin vé hỏng thì vẫn mở trang như cũ để đăng nhập tay.
 
+**Bấm đúp file cài giờ mới thật sự cài.** File phát hành đổi tên thành
+`LTTNexus-<ver>-win-x64-install.exe`. Bộ đóng gói của RustDesk chỉ mở trình cài
+khi **tên file kết thúc bằng `install.exe`** (`libs/portable/src/main.rs`); bản
+1.2.0/1.3.0 tên `…-setup.exe` nên bấm đúp chỉ chạy một bản tạm trong
+`%LOCALAPPDATA%` — chạy bình thường, nên không ai biết là đã không cài.
+
+> **Đang ở 1.0.0 hoặc 1.1.0?** Hai bản đó ra đời trước tính năng tự cập nhật, nên
+> nút *Cập nhật* của chúng chỉ biết mở trang web — không có cách nào để chúng tự
+> nâng cấp. Cài tay **một lần** bằng file `…-install.exe` ở
+> `app.lttstudios.com/tai-xuong`, từ đó về sau mỗi bản mới chỉ cần một cú bấm.
+
+**Mỗi tab danh sách máy nay có một dòng nói rõ nó là gì.** Tab *Đã tìm thấy* liệt
+kê máy quét được trong mạng nội bộ — **không thuộc tài khoản LTT** — nhưng trước
+đây nó không nói vậy, nên nhìn vào dễ tưởng là danh sách máy của tài khoản hoặc
+nhật ký chung của máy chủ.
+
 **Nhật ký truy cập** (trên web): trang *Máy của tôi* nay có bảng "ai đã điều
 khiển máy của bạn, lúc nào, từ IP nào". Bản ghi không sửa được và không mất khi
 thu hồi máy.
@@ -70,8 +86,13 @@ còn một tài khoản LTT duy nhất. Các link tải/giá/chính sách nay tr
 * Thêm **nút kiểm bản cập nhật** và hiện thông báo **ngay ở màn đăng nhập**
   (trước đó chưa đăng nhập thì không bao giờ biết có bản mới).
 
-> Nâng cấp: mở app, bấm **Cập nhật ngay** ở khung thông báo. Hoặc tải file cài
-> mới ở `app.lttstudios.com/tai-xuong` và chạy — nó tự đè lên bản cũ.
+> Nâng cấp: mở app, bấm **Cập nhật ngay** ở khung thông báo.
+>
+> ⚠️ **Đính chính (23/08):** câu ở đây trước viết "tải file cài mới rồi chạy — nó
+> tự đè lên bản cũ". **Sai.** File phát hành ở 1.2.0/1.3.0 tên là `…-setup.exe`,
+> mà bộ đóng gói chỉ mở trình cài khi tên file kết thúc bằng `install.exe`; đặt
+> tên khác thì bấm đúp **chỉ chạy bản tạm**, không cài. Từ 1.4.0 file đã đổi tên
+> đúng. Ai đang ở 1.0.0/1.1.0 xem hướng dẫn ở mục 1.4.0.
 
 ## 1.1.0 — 2026-08-21
 
