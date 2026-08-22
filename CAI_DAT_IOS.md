@@ -18,34 +18,69 @@ Dành cho **dùng nội bộ**. Ba cách, xếp theo chi phí. Đọc bảng r�
 
 ## Bước chung: lấy file `.ipa`
 
-1. Mở **GitHub → repo LTTnexus → tab Actions**
-2. Chọn workflow **"Flutter Nightly Build"** → **Run workflow** → nhánh `ltt-nexus`
-3. Đợi build xong (~30–60 phút), mở lần chạy đó, kéo xuống mục **Artifacts**
-4. Tải **`LTTNexus-ios-unsigned-ipa`** → giải nén được `LTTNexus-unsigned.ipa`
+**Cách nhanh nhất — tải thẳng từ web:**
+mở `app.lttstudios.com/tai-xuong` → mục **iOS** → **Tải xuống**
 
-File này **chưa ký** — đó là bình thường. Công cụ ở bước sau sẽ ký lại bằng
-Apple ID của chính bạn.
+> Tải bằng Safari trên iPhone cũng được: file vào app **Tệp**, rồi mở SideStore
+> chọn nó. **Lưu ý:** bấm vào file trong Tệp thì iOS **không** cài — phải qua
+> SideStore/Sideloadly, vì file chưa ký (xem phần cuối để hiểu vì sao).
 
----
+*Hoặc* lấy bản mới nhất từ GitHub: **Actions → "LTT — Build iOS (IPA chưa ký)"
+→ Run workflow** (nhánh `ltt-nexus`) → tải artifact `LTTNexus-ios-unsigned-ipa`.
 
-## Cách A — SideStore (0đ, tự gia hạn) ⭐ khuyên dùng
-
-Ưu điểm lớn nhất: sau khi cài xong, **app tự ký lại ngay trên iPhone** mỗi 7
-ngày, không cần cắm máy tính nữa.
-
-1. Trên máy tính: tải **SideStore** (sidestore.io) và làm theo hướng dẫn tạo
-   **pairing file** (ghép đôi iPhone với máy tính — chỉ làm **một lần**)
-2. Cài SideStore lên iPhone, nạp pairing file
-3. Trong SideStore bấm **+** → chọn file `.ipa` → đăng nhập **Apple ID thường**
-   (miễn phí, nên dùng một Apple ID phụ)
-4. Trên iPhone: **Cài đặt → Cài đặt chung → VPN & Quản lý thiết bị** → chọn
-   Apple ID của bạn → **Tin cậy**
-5. Bật **Background refresh** trong SideStore để nó tự gia hạn
-
-**Điểm yếu thật:** pairing file thỉnh thoảng hỏng (sau khi cập nhật iOS), lúc đó
-phải tạo lại. Không mất dữ liệu, chỉ mất vài phút.
+File **chưa ký** là đúng thiết kế — công cụ ở bước sau ký lại bằng Apple ID của
+chính bạn, và đó là thứ khiến nó miễn phí.
 
 ---
+
+## Cách A - SideStore (0đ, tự gia hạn) ⭐ khuyên dùng
+
+**Cần máy tính ĐÚNG MỘT LẦN** để ghép đôi. Sau đó iPhone tự ký lại mỗi 7 ngày,
+vĩnh viễn không cần cắm máy tính nữa.
+
+> Không có cách nào bỏ hẳn máy tính ở bước đầu: iOS chỉ cấp "pairing file" cho
+> một máy tính đã được iPhone tin cậy qua USB. Đó là thiết kế của Apple.
+
+### Chuẩn bị (một lần)
+
+1. **iTunes** — tải từ **apple.com**, KHÔNG dùng bản Microsoft Store
+   (bản Store thiếu driver USB, iLoader sẽ không thấy máy)
+2. **iLoader** trên PC — công cụ chính thức được SideStore khuyên dùng
+   (iloader.site). Nó thay cho jitterbugpair cũ
+3. **LocalDevVPN** trên iPhone — tải từ App Store (miễn phí). SideStore cần một
+   đường VPN nội bộ để tự làm mới; nó KHÔNG gửi dữ liệu đi đâu, chỉ vòng trong máy
+4. **Apple ID phụ** — đừng dùng tài khoản chính. Đây là chứng chỉ development,
+   nên dùng ID riêng cho an toàn
+
+### Cài (một lần, ~15 phút)
+
+1. Cắm iPhone vào PC bằng cáp, mở khoá, bấm **Tin cậy máy tính này**
+2. Mở **iLoader** → đăng nhập **Apple ID phụ** → chọn iPhone → **Install SideStore**
+3. Trên iPhone: **Cài đặt → Cài đặt chung → VPN & Quản lý thiết bị** → chọn
+   Apple ID vừa dùng → **Tin cậy**
+4. Mở **SideStore**, bật **LocalDevVPN** khi được hỏi
+5. Bấm vào số **"7 DAYS"** bên cạnh SideStore để làm mới lần đầu — xong thiết lập
+
+### Cài LTT Nexus (từ đây trở đi KHÔNG cần máy tính)
+
+* **Cách nhanh:** mở Safari trên iPhone → vào `app.lttstudios.com/tai-xuong` →
+  tải file `.ipa` (nó vào app **Tệp**) → mở **SideStore** → bấm **+** → chọn file
+* **Hoặc** dán thẳng link `.ipa` vào SideStore nếu bản của bạn hỗ trợ nguồn URL
+
+### Sau đó
+
+* App tự ký lại mỗi 7 ngày qua VPN nội bộ — **không phải cắm máy tính nữa**
+* Giới hạn 3 app của Apple ID miễn phí: SideStore lách được bằng cách tạm tắt/bật,
+  giữ tới **10 app**
+* Pairing file có thể hỏng sau khi **cập nhật iOS** — lúc đó cắm PC làm lại bước
+  ghép đôi (vài phút), không mất dữ liệu
+
+### Muốn bỏ HẲN máy tính?
+
+Có công cụ như **ESign** cài được SideStore không cần PC, nhưng nó ký bằng
+**chứng chỉ enterprise của bên thứ ba**. Nghĩa là app sống hay chết phụ thuộc
+vào chứng chỉ của người lạ — Apple thu hồi là **chết cả loạt**, và bạn không
+kiểm soát được. Với máy dùng chính thì **không nên**.
 
 ## Cách B — Sideloadly (0đ, đơn giản nhất để thử lần đầu)
 
