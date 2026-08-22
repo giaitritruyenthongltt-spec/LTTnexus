@@ -160,22 +160,38 @@ jobs:
       # xuat duoc .ipa (khong co team ky), nen tu goi .app vao Payload/ —
       # dung cach cong dong van lam; Sideloadly/AltStore se KY LAI bang Apple ID
       # cua nguoi dung luc cai, nen ky o day la khong can thiet.
-      - name: LTT — package unsigned IPA
+      - name: LTT - package unsigned IPA
         shell: bash
         run: |
           set -e
           cd flutter
+          echo "--- cay build/ios (de chan doan neu hong) ---"
+          ls -la build/ios 2>/dev/null || echo "(khong co build/ios)"
+          find build/ios -maxdepth 3 -name "*.app" -o -maxdepth 3 -name "*.ipa" -o -maxdepth 2 -name "*.xcarchive" 2>/dev/null | head -20
+
           OUT="$GITHUB_WORKSPACE/ltt-ios"
           mkdir -p "$OUT"
-          if ls build/ios/ipa/*.ipa >/dev/null 2>&1; then
-            cp build/ios/ipa/*.ipa "$OUT/LTTNexus-unsigned.ipa"
-          elif [ -d build/ios/iphoneos/Runner.app ]; then
-            rm -rf /tmp/Payload && mkdir -p /tmp/Payload
-            cp -R build/ios/iphoneos/Runner.app /tmp/Payload/
-            (cd /tmp && zip -qry "$OUT/LTTNexus-unsigned.ipa" Payload)
-          else
-            echo "khong tim thay .ipa lan Runner.app"; exit 1
+
+          # 1) Neu ky duoc thi da co san .ipa
+          IPA="$(ls build/ios/ipa/*.ipa 2>/dev/null | head -1 || true)"
+          if [ -n "$IPA" ]; then
+            cp "$IPA" "$OUT/LTTNexus-unsigned.ipa"
+            ls -la "$OUT"; exit 0
           fi
+
+          # 2) `flutter build ipa --no-codesign` dung o buoc ARCHIVE: .app nam
+          #    trong .xcarchive, KHONG phai o build/ios/iphoneos (do la dau ra
+          #    cua `flutter build ios`). Tim moi noi thay vi doan mot cho.
+          APP="$(find build/ios -maxdepth 6 -type d -name "*.app"                   -not -path "*/Frameworks/*" 2>/dev/null | head -1 || true)"
+          if [ -z "$APP" ]; then
+            echo "KHONG tim thay .app lan .ipa trong build/ios — xem cay o tren"
+            find build/ios -maxdepth 4 -type d 2>/dev/null | head -40
+            exit 1
+          fi
+          echo "dung .app: $APP"
+          rm -rf /tmp/Payload && mkdir -p /tmp/Payload
+          cp -R "$APP" /tmp/Payload/
+          (cd /tmp && zip -qry "$OUT/LTTNexus-unsigned.ipa" Payload)
           ls -la "$OUT"
 
       - name: LTT — upload unsigned IPA
