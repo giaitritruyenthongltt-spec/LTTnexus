@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import glob
 import os
 import pathlib
 import platform
@@ -417,7 +418,15 @@ def build_flutter_dmg(version, features):
     mac_arch = 'arm64' if platform.machine().lower() in ('arm64', 'aarch64') else 'x86_64'
     system2(
         f'FLUTTER_XCODE_ARCHS={mac_arch} FLUTTER_XCODE_ONLY_ACTIVE_ARCH=YES flutter build macos --release')
-    system2('cp -rf ../target/release/service ./build/macos/Build/Products/Release/RustDesk.app/Contents/MacOS/')
+    # TIM goi .app thay vi viet cung ten. Fork nay doi PRODUCT_NAME thanh
+    # "LTTNexus" (flutter/macos/Runner/Configs/AppInfo.xcconfig), nen dong nay khi
+    # viet cung "RustDesk.app" lam build do NGAY SAU khi flutter da build xong:
+    # 11 phut bien dich roi hong o buoc chep mot file. Doan ten la cach hong ngam.
+    goi_app = glob.glob('./build/macos/Build/Products/Release/*.app')
+    if not goi_app:
+        print('KHONG thay goi .app nao sau khi `flutter build macos`')
+        sys.exit(-1)
+    system2('cp -rf ../target/release/service "%s/Contents/MacOS/"' % goi_app[0])
     '''
     system2(
         "create-dmg --volname \"RustDesk Installer\" --window-pos 200 120 --window-size 800 400 --icon-size 100 --app-drop-link 600 185 --icon RustDesk.app 200 190 --hide-extension RustDesk.app rustdesk.dmg ./build/macos/Build/Products/Release/RustDesk.app")
