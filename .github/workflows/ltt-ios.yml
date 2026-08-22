@@ -45,6 +45,11 @@ env:
   #signing keys env variable checks
   ANDROID_SIGNING_KEY: "${{ secrets.ANDROID_SIGNING_KEY }}"
   MACOS_P12_BASE64: "${{ secrets.MACOS_P12_BASE64 }}"
+  # LTT - ky Ad Hoc de cai THANG tu Safari (itms-services). Vang secret thi
+  # workflow van chay va ra IPA chua ky nhu cu — khong hong, chi la khong ky.
+  IOS_P12_BASE64: "${{ secrets.IOS_P12_BASE64 }}"
+  IOS_P12_PASSWORD: "${{ secrets.IOS_P12_PASSWORD }}"
+  IOS_MOBILEPROVISION_BASE64: "${{ secrets.IOS_MOBILEPROVISION_BASE64 }}"
   UPLOAD_ARTIFACT: "true"
   SIGN_BASE_URL: "${{ secrets.SIGN_BASE_URL }}-2"
 
@@ -193,6 +198,66 @@ jobs:
           cp -R "$APP" /tmp/Payload/
           (cd /tmp && zip -qry "$OUT/LTTNexus-unsigned.ipa" Payload)
           ls -la "$OUT"
+
+      # LTT - KY Ad Hoc. Day la thu bien "phai cam may tinh" thanh "mo Safari
+      # bam mot cai": chi IPA da ky Ad Hoc/Enterprise moi cai duoc qua
+      # itms-services. Bo qua khi chua co secret, de nguoi chua mua $99 van co
+      # ban chua ky dung voi SideStore.
+      - name: LTT - sign IPA (Ad Hoc) if secrets present
+        if: env.IOS_P12_BASE64 != ''
+        shell: bash
+        env:
+          P12_B64: ${{ secrets.IOS_P12_BASE64 }}
+          P12_PASS: ${{ secrets.IOS_P12_PASSWORD }}
+          PROFILE_B64: ${{ secrets.IOS_MOBILEPROVISION_BASE64 }}
+        run: |
+          set -e
+          OUT="$GITHUB_WORKSPACE/ltt-ios"
+          WORK="$(mktemp -d)"
+          cd "$WORK"
+
+          echo "$P12_B64"     | base64 --decode > cert.p12
+          echo "$PROFILE_B64" | base64 --decode > profile.mobileprovision
+
+          # Keychain rieng cho lan chay nay (khong dung keychain mac dinh)
+          KC="ltt-ios.keychain-db"
+          security create-keychain -p "$P12_PASS" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$P12_PASS" "$KC"
+          security import cert.p12 -k "$KC" -P "$P12_PASS" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$P12_PASS" "$KC" >/dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+
+          IDENT="$(security find-identity -v -p codesigning "$KC" | awk 'NR==1{print $2}')"
+          if [ -z "$IDENT" ]; then echo "khong tim thay chung chi ky trong p12"; exit 1; fi
+          echo "dung chung chi: $IDENT"
+
+          # Quyen (entitlements) lay TU chinh provisioning profile — tu che tay
+          # la sai va iOS tu choi cai ma khong noi ly do
+          security cms -D -i profile.mobileprovision > profile.plist
+          /usr/libexec/PlistBuddy -x -c 'Print :Entitlements' profile.plist > entitlements.plist
+
+          # Bung IPA chua ky, nhet profile vao trong .app roi ky lai
+          rm -rf app && mkdir app && cd app
+          unzip -q "$OUT/LTTNexus-unsigned.ipa"
+          APP="$(ls -d Payload/*.app | head -1)"
+          cp ../profile.mobileprovision "$APP/embedded.mobileprovision"
+          # Ky tu trong ra ngoai: framework/dylib truoc, .app sau cung
+          find "$APP" \( -name "*.framework" -o -name "*.dylib" -o -name "*.appex" \) -print0             | xargs -0 -I{} codesign --force --sign "$IDENT" --timestamp=none {} || true
+          codesign --force --sign "$IDENT" --entitlements ../entitlements.plist --timestamp=none "$APP"
+          codesign --verify --verbose=2 "$APP"
+
+          zip -qry "$OUT/LTTNexus-signed.ipa" Payload
+          ls -la "$OUT"
+          echo "IOS_SIGNED=1" >> "$GITHUB_ENV"
+
+      - name: LTT - upload signed IPA
+        if: env.IOS_SIGNED == '1'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: LTTNexus-ios-signed-ipa
+          path: ltt-ios/LTTNexus-signed.ipa
+          if-no-files-found: error
 
       - name: LTT — upload unsigned IPA
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
