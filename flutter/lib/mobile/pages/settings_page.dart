@@ -965,10 +965,10 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
                 onPressed: (context) async {
                   await launchUrl(Uri.parse(url));
                 },
-                title: Text(translate("Version: ") + version),
+                title: Text(translate("Version: ") + _lttVersion()),
                 value: Padding(
                   padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Text('rustdesk.com',
+                  child: Text('app.lttstudios.com',
                       style: TextStyle(
                         decoration: TextDecoration.underline,
                       )),
@@ -1098,12 +1098,22 @@ void showThemeSettings(OverlayDialogManager dialogManager) async {
   }, backDismiss: true, clickMaskDismiss: true);
 }
 
+/// So phien ban LTT (LTT_VERSION ben Rust) - cai nguoi dung doi chieu voi trang
+/// tai va voi thong bao cap nhat. `version` la so cua RustDesk nen (1.4.9).
+String _lttVersion() {
+  try {
+    return bind.nexusClientLttVersion();
+  } catch (_) {
+    return version;
+  }
+}
+
 void showAbout(OverlayDialogManager dialogManager) {
   dialogManager.show((setState, close, context) {
     return CustomAlertDialog(
-      title: Text(translate('About RustDesk')),
+      title: Text(translate('About LTT Nexus')),
       content: Wrap(direction: Axis.vertical, spacing: 12, children: [
-        Text('Version: $version'),
+        Text('Version: ${_lttVersion()}'),
         InkWell(
             onTap: () async {
               const url = 'https://app.lttstudios.com/tai-xuong';
@@ -1111,7 +1121,7 @@ void showAbout(OverlayDialogManager dialogManager) {
             },
             child: Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
-              child: Text('rustdesk.com',
+              child: Text('app.lttstudios.com',
                   style: TextStyle(
                     decoration: TextDecoration.underline,
                   )),

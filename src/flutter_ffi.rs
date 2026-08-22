@@ -3106,6 +3106,13 @@ pub fn nexus_client_my_devices(base_url: String) -> String {
     }
 }
 
+/// URL mở trình duyệt kèm vé đăng nhập một lần (B3) — để bấm "Nạp credit" không
+/// phải gõ mật khẩu lần thứ hai. Xin vé thất bại thì trả thẳng `base_url + dich`
+/// (đăng nhập tay), chứ KHÔNG chặn người dùng lại. HTTP nên chạy trên worker.
+pub fn nexus_client_web_login_url(base_url: String, dich: String) -> String {
+    crate::nexus_client::web_login_url(&base_url, &dich)
+}
+
 /// Kiểm bản mới. Trả URL trang tải nếu có bản mới hơn, ngược lại "". HTTP nên
 /// chạy trên worker (frb) — không chặn UI.
 pub fn nexus_client_check_update(base_url: String) -> String {

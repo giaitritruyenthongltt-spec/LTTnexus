@@ -580,7 +580,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("2FA code must be 6 digits.", "Mã 2FA phải có 6 chữ số."),
         ("Multiple Windows sessions found", "Tìm thấy nhiều phiên Windows"),
         ("Please select the session you want to connect to", "Chọn phiên bạn muốn kết nối"),
-        ("powered_by_me", "Cung cấp bởi tôi"),
+        ("powered_by_me", "Cung cấp bởi LTT Nexus"),
         ("outgoing_only_desk_tip", "Chỉ cho phép kết nối đi."),
         ("preset_password_warning", "Cảnh báo mật khẩu thiết lập sẵn"),
         ("Security Alert", "Cảnh báo bảo mật"),
@@ -767,5 +767,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("conn-e2ee-unavailable-tip", "Không thể xác minh mã hóa đầu cuối.\nThiết bị từ xa có thể vẫn đang được thiết lập. Hãy thử lại sau.\nNếu điều này tiếp tục xảy ra, máy chủ có thể không đáng tin cậy.\nVẫn tiếp tục?"),
         ("About LTT Nexus", "Về LTT Nexus"),
         ("Based on RustDesk", "Dựa trên RustDesk"),
+        ("based_on_rustdesk_tip", "dựa trên RustDesk của Purslane Tech Pte. Ltd."),
+        ("ltt_slogan_tip", "Điều khiển máy từ xa — do LTT Studios vận hành."),
     ].iter().cloned().collect();
 }

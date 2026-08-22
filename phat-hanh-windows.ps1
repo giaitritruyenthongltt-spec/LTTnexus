@@ -58,7 +58,10 @@ $setupSize = (Get-Item (Join-Path $distDir (Split-Path $setup -Leaf))).Length
 
 Write-Host '== 4/4: cap nhat ban ke phien ban ==' -ForegroundColor Cyan
 $manifestPath = Join-Path $DataDir 'nexus_versions.json'
-$m = Get-Content $manifestPath -Raw | ConvertFrom-Json
+# DOC bang UTF-8 TUONG MINH. `Get-Content -Raw` cua PowerShell 5.1 doc theo
+# bang ma ANSI, nen chu tieng Viet co dau trong `notes` se bi nat ngay o lan
+# phat hanh KE TIEP - va nat mot cach im lang, vi script van chay xong.
+$m = [IO.File]::ReadAllText($manifestPath, [Text.UTF8Encoding]::new($false)) | ConvertFrom-Json
 $m.version = $Version
 $w = $m.platforms.windows
 $w.available    = $true

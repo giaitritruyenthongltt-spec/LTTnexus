@@ -282,5 +282,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("conn-e2ee-unavailable-tip", "Could not verify end-to-end encryption.\nThe remote device may still be setting up. Try again later.\nIf this keeps happening, the server may be untrusted.\nContinue anyway?"),
         ("About LTT Nexus", ""),
         ("Based on RustDesk", ""),
+        ("based_on_rustdesk_tip", "based on RustDesk by Purslane Tech Pte. Ltd."),
+        ("ltt_slogan_tip", "Remote access, operated by LTT Studios."),
     ].iter().cloned().collect();
 }

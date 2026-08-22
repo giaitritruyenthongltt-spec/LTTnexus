@@ -22,6 +22,33 @@ client thì không thấy có bản mới nên không nhắc cập nhật.
 
 ---
 
+## 1.4.0 — 2026-08-22
+
+**Một tài khoản, không gõ mật khẩu hai lần.** Bấm **Nạp credit** trước đây mở
+trình duyệt tới `/nap` rồi bắt đăng nhập lại — cùng một tài khoản mà phải nhập
+mật khẩu lần thứ hai. Nay ứng dụng tự xin một **vé đăng nhập một lần** bằng khoá
+thiết bị đã có, nên trình duyệt mở ra là đã đăng nhập sẵn. Vé sống 90 giây và
+dùng đúng một lần; xin vé hỏng thì vẫn mở trang như cũ để đăng nhập tay.
+
+**Nhật ký truy cập** (trên web): trang *Máy của tôi* nay có bảng "ai đã điều
+khiển máy của bạn, lúc nào, từ IP nào". Bản ghi không sửa được và không mất khi
+thu hồi máy.
+
+**`/nexus` trên web** nay là trang giới thiệu thật — sản phẩm là gì, bảng tải 4
+nền tảng, 4 bước dùng, giá, câu hỏi thường gặp — thay cho bảng điều khiển
+web-broker đã đóng băng theo Q101.
+
+## 1.3.0 — 2026-08-22
+
+**Ghi công đúng luật, chữ đúng dấu.** Mục *Về LTT Nexus* trước đây in
+"Dựa trên LTTNexus 1.4.9" — phép đổi thương hiệu quét cả dòng ghi công AGPL nên
+xoá mất chính cái tên mà giấy phép bắt phải giữ. Nay đúng: **"Dựa trên RustDesk
+1.4.9"**. Dòng bản quyền cũng hết chữ không dấu ("dua tren RustDesk cua…") và
+khẩu hiệu của RustDesk được thay bằng câu của LTT.
+
+> Đây là bản đầu tiên bạn có thể nâng cấp **ngay trong app**: bấm *Cập nhật ngay*
+> ở khung thông báo, app tự tải, đối chiếu SHA-256 rồi cài đè.
+
 ## 1.2.0 — 2026-08-22
 
 **Tự cập nhật thật.** Trước đây bấm "Cập nhật" chỉ mở trang tải rồi bạn tự giải

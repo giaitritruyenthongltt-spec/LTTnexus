@@ -208,6 +208,79 @@ pub fn my_devices(base_url: &str) -> ResultType<String> {
     Ok(resp.text()?)
 }
 
+/// Xin một **vé đăng nhập một lần** rồi trả URL trình duyệt nên mở (B3).
+///
+/// Trước đó, bấm "Nạp credit" mở `/nap` rồi web bắt đăng nhập lại — cùng một tài
+/// khoản mà phải gõ mật khẩu hai lần. Thiết bị đã có khoá riêng nên nó tự chứng
+/// minh được danh tính; máy chủ đổi lại một vé sống 90 giây, dùng một lần.
+///
+/// Trả chuỗi rỗng khi không xin được vé; người gọi khi đó mở thẳng `dich` như cũ
+/// (đăng nhập tay) — **không** được coi đó là lỗi chặn người dùng lại.
+///
+/// GỌI TỪ LUỒNG BLOCKING.
+pub fn web_login_url(base_url: &str, dich: &str) -> String {
+    let base = base_url.trim_end_matches('/').to_owned();
+    let dich = if dich.starts_with('/') { dich } else { "/" };
+    let that_bai = format!("{}{}", base, dich);
+
+    let did = device_id();
+    let sec_b64 = LocalConfig::get_option(K_SECRET);
+    if did.is_empty() || sec_b64.is_empty() {
+        return that_bai;
+    }
+    let sk = match sign::SecretKey::from_slice(&match b64d(&sec_b64) {
+        Ok(v) => v,
+        Err(_) => return that_bai,
+    }) {
+        Some(k) => k,
+        None => return that_bai,
+    };
+    let path = "/nexus-agent/web-login";
+    let ts = now_ts();
+    let body: &[u8] = b"";
+    let sig = sign::sign_detached(&canonical("POST", path, &ts, body), &sk);
+    let resp = http()
+        .post(&format!("{}{}", base, path))
+        .header("X-LTT-Device", did)
+        .header("X-LTT-Timestamp", ts)
+        .header("X-LTT-Signature", b64e(sig.as_ref()))
+        .header("Content-Type", "application/json")
+        .body(body.to_vec())
+        .send();
+    let text = match resp.and_then(|r| r.text()) {
+        Ok(t) => t,
+        Err(_) => return that_bai,
+    };
+    let j: serde_json::Value = match serde_json::from_str(&text) {
+        Ok(v) => v,
+        Err(_) => return that_bai,
+    };
+    let ve = j["ticket"].as_str().unwrap_or("");
+    if ve.is_empty() {
+        return that_bai;
+    }
+    format!("{}/nexus-sso?ma={}&next={}", base, ma_hoa_url(ve), ma_hoa_url(dich))
+}
+
+/// Mã hoá phần trăm cho một giá trị đi vào query string.
+///
+/// Tự viết thay vì kéo thêm một crate: vé là base64url (`A-Za-z0-9-_`) và `dich`
+/// là một đường dẫn nội bộ, nên bảng ký tự cần xử lý rất hẹp. Giữ nguyên nhóm
+/// "unreserved" của RFC 3986, còn lại mã hoá hết — kể cả `/`, vì nó nằm trong
+/// giá trị `next` chứ không phải trong cấu trúc URL.
+fn ma_hoa_url(raw: &str) -> String {
+    let mut ra = String::with_capacity(raw.len());
+    for b in raw.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                ra.push(b as char)
+            }
+            _ => ra.push_str(&format!("%{:02X}", b)),
+        }
+    }
+    ra
+}
+
 /// Tải bản cài mới rồi chạy nó im lặng — **tự cập nhật thật**, không bắt người
 /// dùng tự giải nén đè.
 ///
@@ -329,7 +402,7 @@ pub fn may_control() -> bool {
 
 /// Phiên bản LTT của bản build này (khác version RustDesk gốc 1.4.9). So với
 /// `manifest.version` ở `/nexus/version.json` để biết có bản mới không.
-pub const LTT_VERSION: &str = "1.2.0";
+pub const LTT_VERSION: &str = "1.4.0";
 
 fn version_gt(a: &str, b: &str) -> bool {
     // a > b theo semver đơn giản (x.y.z; phần thiếu coi như 0).
@@ -420,6 +493,26 @@ pub fn report_session_event(session_key: &str, event: &str, peer_id: &str, contr
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── Vé SSO đi vào query string: mã hoá sai là mở cửa cho chèn tham số ────
+
+    #[test]
+    fn ma_hoa_url_giu_nguyen_ky_tu_an_toan() {
+        assert_eq!(ma_hoa_url("abcXYZ0189-_.~"), "abcXYZ0189-_.~");
+    }
+
+    #[test]
+    fn ma_hoa_url_ma_hoa_dau_gach_cheo_va_dau_va() {
+        // `/` phải bị mã hoá: nó nằm trong GIÁ TRỊ của `next`, không phải trong
+        // cấu trúc URL. `&` không mã hoá thì kẻ khác chèn được tham số mới.
+        assert_eq!(ma_hoa_url("/nap"), "%2Fnap");
+        assert_eq!(ma_hoa_url("a&b=c"), "a%26b%3Dc");
+    }
+
+    #[test]
+    fn ma_hoa_url_ma_hoa_ca_ky_tu_ngoai_ascii() {
+        assert_eq!(ma_hoa_url("á"), "%C3%A1");
+    }
 
     // ── Tự cập nhật: các hàng rào phải chặn TRƯỚC khi tải ────────────────────
     //

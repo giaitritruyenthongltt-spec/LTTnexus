@@ -230,8 +230,12 @@ pub fn translate_locale(name: String, locale: &str) -> String {
             s = s.replace("{}", &value);
         }
         if !crate::is_rustdesk() {
+            // "Based on RustDesk" la dong GHI CONG theo AGPL: ten goc PHAI
+            // giu nguyen. Khong loai tru thi phep thay the ben duoi bien no
+            // thanh "Dua tren LTTNexus" - vua vo nghia vua xoa mat ghi cong.
             if s.contains("RustDesk")
                 && !name.starts_with("upgrade_rustdesk_server_pro")
+                && !GIU_TEN_GOC.contains(&name.as_str())
             {
                 // LTT Nexus: allow "powered_by_me" to be rebranded too (upstream
                 // excluded it to keep RustDesk attribution; our attribution lives
@@ -282,6 +286,10 @@ pub fn translate_locale(name: String, locale: &str) -> String {
 // Example:
 // Write in the UI: translate("There are {24} hours in a day")
 // Write in the translation file: ("There are {} hours in a day", "{} hours make up a day")
+/// Cac khoa dich la GHI CONG theo AGPL: ten "RustDesk" trong gia tri PHAI giu
+/// nguyen, khong duoc doi thanh ten thuong hieu fork.
+const GIU_TEN_GOC: [&str; 2] = ["Based on RustDesk", "based_on_rustdesk_tip"];
+
 fn extract_placeholder(input: &str) -> (String, Option<String>) {
     if let Ok(re) = Regex::new(r#"\{(.*?)\}"#) {
         if let Some(captures) = re.captures(input) {

@@ -2490,11 +2490,11 @@ class _AboutState extends State<_About> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Copyright © ${DateTime.now().toString().substring(0, 4)} LTT Studios - dua tren RustDesk cua Purslane Tech Pte. Ltd. (AGPL-3.0)\n$license',
+                            'Copyright © ${DateTime.now().toString().substring(0, 4)} LTT Studios — ${translate('based_on_rustdesk_tip')} (AGPL-3.0)\n$license',
                             style: const TextStyle(color: Colors.white),
                           ),
                           Text(
-                            translate('Slogan_tip'),
+                            translate('ltt_slogan_tip'),
                             style: TextStyle(
                                 fontWeight: FontWeight.w800,
                                 color: Colors.white),

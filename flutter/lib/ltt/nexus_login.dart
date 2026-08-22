@@ -22,6 +22,25 @@ String nexusServer() {
   return 'https://app.lttstudios.com';
 }
 
+/// Mở một trang của app.lttstudios.com **kèm vé đăng nhập một lần** (B3).
+///
+/// Trước đó bấm "Nạp credit" mở `/nap` rồi web bắt đăng nhập lại — cùng một tài
+/// khoản mà phải gõ mật khẩu hai lần, và người dùng đọc việc đó là "app và web
+/// là hai hệ khác nhau".
+///
+/// Xin vé hỏng (mất mạng, chưa đăng nhập, máy chủ cũ chưa có đường này) thì vẫn
+/// mở trang như cũ để người dùng đăng nhập tay. Một tiện nghi hỏng KHÔNG được
+/// biến thành một nút bấm không có phản ứng gì.
+Future<void> moTrangLTT(String dich) async {
+  var url = '${nexusServer()}$dich';
+  try {
+    final v = await bind.nexusClientWebLoginUrl(
+        baseUrl: nexusServer(), dich: dich);
+    if (v.isNotEmpty) url = v;
+  } catch (_) {}
+  await launchUrl(Uri.parse(url));
+}
+
 /// Thanh tài khoản trên trang chủ (sau khi đăng nhập): email · credit · nút
 /// "Nạp credit" (mở trình duyệt, Q98) · đăng xuất. Hỏi `/status` định kỳ và cảnh
 /// báo khi hết credit (hết credit → không điều khiển được, Q98).
@@ -171,7 +190,7 @@ class _NexusAccountBarState extends State<NexusAccountBar> {
               IconButton(
                 tooltip: 'Nạp credit',
                 icon: Icon(Icons.add_card, size: 18, color: MyTheme.accent),
-                onPressed: () => launchUrl(Uri.parse('${nexusServer()}/nap')),
+                onPressed: () => moTrangLTT('/nap'),
               ),
               IconButton(
                 tooltip: 'Kiểm bản cập nhật',
@@ -203,7 +222,7 @@ class _NexusAccountBarState extends State<NexusAccountBar> {
                       style: TextStyle(color: Color(0xFFFFD0CC), fontSize: 12)),
                 ),
                 TextButton(
-                  onPressed: () => launchUrl(Uri.parse('${nexusServer()}/nap')),
+                  onPressed: () => moTrangLTT('/nap'),
                   child: Text('Nạp credit',
                       style: TextStyle(color: MyTheme.accent, fontSize: 12)),
                 ),
