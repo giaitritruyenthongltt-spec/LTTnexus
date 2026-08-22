@@ -40,7 +40,14 @@ class PeerTabModel with ChangeNotifier {
   List<bool> isEnabled = List.from([
     true,
     true,
-    !isWeb && bind.mainGetLocalOption(key: "disable-discovery-panel") != "Y",
+    // LTT Nexus: TAT HAN tab "Da tim thay".
+    //
+    // Tab nay liet ke may tra loi broadcast trong mang LAN. San pham nay lay TAI
+    // KHOAN lam ranh gioi: may nao thuoc tai khoan thi nam o "May cua toi". Bay
+    // ra may KHONG thuoc tai khoan la sai nguyen tac, va dan nhan giai thich
+    // cung khong lam no dung - chu san pham doc danh sach do la bang chung phien
+    // bi lan giua cac tai khoan, va ho doc dung theo nhung gi man hinh noi.
+    false,
     !(bind.isDisableAb() || bind.isDisableAccount()),
     !(bind.isDisableGroupPanel() || bind.isDisableAccount()),
   ]);

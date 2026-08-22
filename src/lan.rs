@@ -23,6 +23,47 @@ use std::{
 
 type Message = RendezvousMessage;
 
+/// Co tra loi broadcast do-tim trong mang LAN khong. **Mac dinh KHONG.**
+///
+/// Tra loi mot cai ping nghia la khai ra `id`, ten may, ten nguoi dang dang nhap
+/// va dia chi MAC cho bat ky ai cung mang - quan ca phe, mang cong ty, khach san.
+/// Voi mot phan mem dieu khien tu xa thi `id` chinh la thu ke khac can de bat dau.
+///
+/// RustDesk goc mac dinh BAT (`option2bool` cho "enable-" tra true khi rong).
+/// LTT Nexus dao lai: khong dat gi = tat. Nguoi dung van bat duoc bang cach dat
+/// "Y" trong Cai dat, nhung do phai la mot lua chon co y thuc.
+///
+/// Cung mot ly do voi viec bo tab "Da tim thay": san pham nay lay TAI KHOAN lam
+/// ranh gioi, khong lay mang LAN.
+fn cho_tra_loi_dò_lan(gia_tri: &str) -> bool {
+    if gia_tri.trim().is_empty() {
+        return false;
+    }
+    config::option2bool("enable-lan-discovery", gia_tri)
+}
+
+#[cfg(test)]
+mod ltt_dò_lan_tests {
+    use super::cho_tra_loi_dò_lan;
+
+    #[test]
+    fn chua_dat_gi_thi_KHONG_tra_loi() {
+        // RustDesk goc tra true o day. Day la cho LTT Nexus co y dao lai.
+        assert!(!cho_tra_loi_dò_lan(""));
+        assert!(!cho_tra_loi_dò_lan("   "));
+    }
+
+    #[test]
+    fn nguoi_dung_bat_tuong_minh_thi_tra_loi() {
+        assert!(cho_tra_loi_dò_lan("Y"));
+    }
+
+    #[test]
+    fn nguoi_dung_tat_tuong_minh_thi_khong_tra_loi() {
+        assert!(!cho_tra_loi_dò_lan("N"));
+    }
+}
+
 #[cfg(not(target_os = "ios"))]
 pub(super) fn start_listening() -> ResultType<()> {
     let addr = SocketAddr::from(([0, 0, 0, 0], get_broadcast_port()));
@@ -36,10 +77,9 @@ pub(super) fn start_listening() -> ResultType<()> {
                 match msg_in.union {
                     Some(rendezvous_message::Union::PeerDiscovery(p)) => {
                         if p.cmd == "ping"
-                            && config::option2bool(
+                            && cho_tra_loi_dò_lan(&Config::get_option(
                                 "enable-lan-discovery",
-                                &Config::get_option("enable-lan-discovery"),
-                            )
+                            ))
                         {
                             let id = Config::get_id();
                             if p.id == id {
