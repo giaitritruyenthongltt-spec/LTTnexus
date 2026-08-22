@@ -76,7 +76,11 @@ class DesktopSettingPage extends StatefulWidget {
     if (!bind.isIncomingOnly()) SettingsTabKey.display,
     if (!isWeb && !bind.isIncomingOnly() && bind.pluginFeatureIsEnabled())
       SettingsTabKey.plugin,
-    if (!bind.isDisableAccount()) SettingsTabKey.account,
+    // LTT Nexus: BO tab tai khoan cua RustDesk. San pham nay dung tai khoan
+    // LTT (thanh tren trang chu / trong Cai dat tren mobile). De ca hai thi
+    // nguoi dung da dang nhap LTT van thay mot nut "Dang nhap" khac va tuong
+    // minh chua dang nhap - hai he tai khoan chong nhau.
+    // if (!bind.isDisableAccount()) SettingsTabKey.account,
     if (isWindows &&
         bind.mainGetBuildinOption(key: kOptionHideRemotePrinterSetting) != 'Y')
       SettingsTabKey.printer,
@@ -2423,21 +2427,33 @@ class _AboutState extends State<_About> {
     }(), hasData: (data) {
       final license = data['license'].toString();
       final version = data['version'].toString();
+      // So phien ban LTT (LTT_VERSION ben Rust) - khac so cua RustDesk.
+      String lttVersion = version;
+      try {
+        lttVersion = bind.nexusClientLttVersion();
+      } catch (_) {}
       final buildDate = data['buildDate'].toString();
       final fingerprint = data['fingerprint'].toString();
       const linkStyle = TextStyle(decoration: TextDecoration.underline);
       final scrollController = ScrollController();
       return SingleChildScrollView(
         controller: scrollController,
-        child: _Card(title: translate('About RustDesk'), children: [
+        child: _Card(title: translate('About LTT Nexus'), children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(
                 height: 8.0,
               ),
+              // Hien SO CUA LTT truoc - do la cai nguoi dung doi chieu voi
+              // trang tai va voi thong bao cap nhat. Van giu so RustDesk ben
+              // duoi: ban nay la fork AGPL, giau goc la sai ca ve giay phep
+              // lan ve su that ky thuat.
               SelectionArea(
-                  child: Text('${translate('Version')}: $version')
+                  child: Text('${translate('Version')}: $lttVersion')
+                      .marginSymmetric(vertical: 4.0)),
+              SelectionArea(
+                  child: Text('${translate('Based on RustDesk')} $version')
                       .marginSymmetric(vertical: 4.0)),
               SelectionArea(
                   child: Text('${translate('Build Date')}: $buildDate')
@@ -2448,7 +2464,7 @@ class _AboutState extends State<_About> {
                         .marginSymmetric(vertical: 4.0)),
               InkWell(
                   onTap: () {
-                    launchUrlString('https://rustdesk.com/privacy.html');
+                    launchUrlString('https://lttstudios.com/privacy-policy/');
                   },
                   child: Text(
                     translate('Privacy Statement'),
@@ -2456,7 +2472,7 @@ class _AboutState extends State<_About> {
                   ).marginSymmetric(vertical: 4.0)),
               InkWell(
                   onTap: () {
-                    launchUrlString('https://rustdesk.com');
+                    launchUrlString('https://app.lttstudios.com/tai-xuong');
                   },
                   child: Text(
                     translate('Website'),
@@ -2474,7 +2490,7 @@ class _AboutState extends State<_About> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Copyright © ${DateTime.now().toString().substring(0, 4)} Purslane Tech Pte. Ltd.\n$license',
+                            'Copyright © ${DateTime.now().toString().substring(0, 4)} LTT Studios - dua tren RustDesk cua Purslane Tech Pte. Ltd. (AGPL-3.0)\n$license',
                             style: const TextStyle(color: Colors.white),
                           ),
                           Text(

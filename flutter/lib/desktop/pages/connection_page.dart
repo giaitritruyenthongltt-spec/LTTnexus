@@ -41,7 +41,7 @@ class _OnlineStatusWidgetState extends State<OnlineStatusWidget> {
   double? get height => bind.isIncomingOnly() ? null : em * 3;
 
   void onUsePublicServerGuide() {
-    const url = "https://rustdesk.com/pricing";
+    const url = "https://app.lttstudios.com/nap";
     canLaunchUrlString(url).then((can) {
       if (can) {
         launchUrlString(url);
@@ -86,24 +86,10 @@ class _OnlineStatusWidgetState extends State<OnlineStatusWidget> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text(', ', style: TextStyle(fontSize: em)),
-                Flexible(
-                  child: InkWell(
-                    onTap: onUsePublicServerGuide,
-                    child: Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            translate('setup_server_tip'),
-                            style: TextStyle(
-                                decoration: TextDecoration.underline,
-                                fontSize: em),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
+                // LTT Nexus: DA BO cau "hay tu thiet lap may chu rieng" cua
+                // RustDesk. Voi ban cong cong thi loi khuyen do dung, nhung voi
+                // LTT Nexus relay rieng CHINH LA thu khach tra tien — xui ho
+                // dung server khac la vua sai vua tu ban vao chan minh.
               ],
             ),
           ),
