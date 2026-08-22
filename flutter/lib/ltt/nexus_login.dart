@@ -38,6 +38,8 @@ class _NexusAccountBarState extends State<NexusAccountBar> {
   int _credit = 0;
   int _price = 0;
   String _updateUrl = ''; // != '' → có bản mới
+  bool _dangKiem = false;      // đang kiểm bản mới (bấm tay)
+  String _ketQuaKiem = '';     // thông báo sau khi bấm kiểm
   Timer? _timer;
 
   @override
@@ -60,22 +62,50 @@ class _NexusAccountBarState extends State<NexusAccountBar> {
       if (!mounted) return;
       // Lỗi mạng KHÔNG phải là "hết credit": chỉ đổi trạng thái khi server thật
       // sự trả về trường `paid`, còn lại giữ nguyên cái đã biết.
-      if (j['paid'] is! bool) return;
-      setState(() {
-        _paid = j['paid'] == true;
-        _credit = (j['credit_balance'] ?? 0) is int
-            ? (j['credit_balance'] ?? 0) as int
-            : int.tryParse('${j['credit_balance']}') ?? 0;
-        _price = (j['price_per_month'] ?? 0) is int
-            ? (j['price_per_month'] ?? 0) as int
-            : int.tryParse('${j['price_per_month']}') ?? 0;
-      });
+      //
+      // KHÔNG `return` ở đây: nó thoát cả hàm và bỏ luôn phần kiểm bản mới bên
+      // dưới — tức là một lần chớp mạng làm người dùng ngừng được báo cập nhật.
+      if (j['paid'] is bool) {
+        setState(() {
+          _paid = j['paid'] == true;
+          _credit = (j['credit_balance'] ?? 0) is int
+              ? (j['credit_balance'] ?? 0) as int
+              : int.tryParse('${j['credit_balance']}') ?? 0;
+          _price = (j['price_per_month'] ?? 0) is int
+              ? (j['price_per_month'] ?? 0) as int
+              : int.tryParse('${j['price_per_month']}') ?? 0;
+        });
+      }
     } catch (_) {}
     // Kiểm bản mới (không cần đăng nhập; fail-open → '' nếu lỗi/không có bản).
     try {
       final u = await bind.nexusClientCheckUpdate(baseUrl: nexusServer());
       if (mounted) setState(() => _updateUrl = u);
     } catch (_) {}
+  }
+
+  /// Kiểm bản mới NGAY khi người dùng bấm.
+  ///
+  /// Vì sao cần dù đã tự kiểm mỗi phút: người dùng cần một chỗ **hỏi được** và
+  /// nhận **câu trả lời rõ ràng**. Không có nó thì "im lặng" vừa có nghĩa là
+  /// đang dùng bản mới nhất, vừa có nghĩa là việc kiểm đang hỏng — không phân
+  /// biệt được.
+  Future<void> _kiemCapNhat() async {
+    if (_dangKiem) return;
+    setState(() {
+      _dangKiem = true;
+      _ketQuaKiem = '';
+    });
+    String u = '';
+    try {
+      u = await bind.nexusClientCheckUpdate(baseUrl: nexusServer());
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() {
+      _dangKiem = false;
+      _updateUrl = u;
+      _ketQuaKiem = u.isEmpty ? 'Đang dùng bản mới nhất.' : '';
+    });
   }
 
   void _logout() {
@@ -117,6 +147,16 @@ class _NexusAccountBarState extends State<NexusAccountBar> {
                 onPressed: () => launchUrl(Uri.parse('${nexusServer()}/nap')),
               ),
               IconButton(
+                tooltip: 'Kiểm bản cập nhật',
+                icon: _dangKiem
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 1.8))
+                    : const Icon(Icons.system_update_alt, size: 17),
+                onPressed: _dangKiem ? null : _kiemCapNhat,
+              ),
+              IconButton(
                 tooltip: 'Đăng xuất',
                 icon: const Icon(Icons.logout, size: 16),
                 onPressed: _logout,
@@ -142,6 +182,13 @@ class _NexusAccountBarState extends State<NexusAccountBar> {
                 ),
               ],
             ),
+          ),
+        if (_ketQuaKiem.isNotEmpty && _updateUrl.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            child: Text(_ketQuaKiem,
+                style: TextStyle(fontSize: 11.5, color: MyTheme.darkGray)),
           ),
         if (_updateUrl.isNotEmpty)
           Container(
